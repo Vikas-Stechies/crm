@@ -186,55 +186,89 @@ export async function registerRoutes(
   });
 
   app.post(api.bookings.create.path, requireAuth, async (req, res) => {
-    // Auto-calculate fields to ensure consistency
-    const { roomRent, addOns = 0, receipt = 0, ...rest } = req.body;
-    const totalCost = roomRent + addOns;
-    const balance = totalCost - receipt;
-    
-    const booking = await storage.createBooking({
-      ...rest,
-      roomRent,
-      addOns,
-      receipt,
-      totalCost,
-      balance,
-      hotelId: (req.user as any).hotelId // Ensure booking is attached to user's hotel
-    });
-    res.status(201).json(booking);
+    try {
+      // Auto-calculate fields to ensure consistency
+      const body = api.bookings.create.input.parse(req.body);
+      const { roomRent, addOns = 0, receipt = 0, checkIn, checkOut, ...rest } = body;
+      
+      const totalCost = roomRent + addOns;
+      const balance = totalCost - receipt;
+      
+      const user = req.user as any;
+      const hotelId = user.role === 'admin' ? body.hotelId : user.hotelId;
+
+      if (!hotelId) {
+        return res.status(400).json({ message: "Hotel ID is required" });
+      }
+      
+      const booking = await storage.createBooking({
+        ...rest,
+        checkIn: new Date(checkIn),
+        checkOut: new Date(checkOut),
+        roomRent,
+        addOns,
+        receipt,
+        totalCost,
+        balance,
+        hotelId: hotelId
+      });
+      res.status(201).json(booking);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      console.error("Booking creation error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.patch(api.bookings.update.path, requireAuth, async (req, res) => {
-    const id = Number(req.params.id);
-    const oldBooking = await storage.getBooking(id);
-    if (!oldBooking) return res.sendStatus(404);
+    try {
+      const id = Number(req.params.id);
+      const oldBooking = await storage.getBooking(id);
+      if (!oldBooking) return res.sendStatus(404);
 
-    // Merge old data with updates to calculate new totals
-    const updates = req.body;
-    const roomRent = updates.roomRent ?? oldBooking.roomRent;
-    const addOns = updates.addOns ?? oldBooking.addOns;
-    const receipt = updates.receipt ?? oldBooking.receipt;
-    
-    const totalCost = roomRent + addOns;
-    const balance = totalCost - receipt;
+      const body = api.bookings.update.input.parse(req.body);
+      
+      // Merge old data with updates to calculate new totals
+      const roomRent = body.roomRent ?? oldBooking.roomRent;
+      const addOns = body.addOns ?? oldBooking.addOns;
+      const receipt = body.receipt ?? oldBooking.receipt;
+      
+      const totalCost = roomRent + addOns;
+      const balance = totalCost - receipt;
 
-    const updatedBooking = await storage.updateBooking(id, {
-      ...updates,
-      totalCost,
-      balance
-    });
+      const updates: any = {
+        ...body,
+        totalCost,
+        balance
+      };
 
-    // Email Trigger Logic
-    const user = req.user as any;
-    // Assuming the user is an owner/manager, or we find the owner of the hotel.
-    // For simplicity, let's log it. In real app, we'd query the hotel owner's email.
-    // Let's assume the current user is modifying it, so we notify "The Owner" (or hardcode/find owner).
-    // Stub:
-    if (oldBooking.totalCost !== updatedBooking.totalCost || oldBooking.receipt !== updatedBooking.receipt) {
-       // Ideally fetch owner email.
-       sendComparisonEmail("owner@example.com", oldBooking, updatedBooking); 
+      if (body.checkIn) updates.checkIn = new Date(body.checkIn);
+      if (body.checkOut) updates.checkOut = new Date(body.checkOut);
+
+      const updatedBooking = await storage.updateBooking(id, updates);
+
+      // Email Trigger Logic
+      const user = req.user as any;
+      if (oldBooking.totalCost !== updatedBooking.totalCost || oldBooking.receipt !== updatedBooking.receipt) {
+         sendComparisonEmail("owner@example.com", oldBooking, updatedBooking); 
+      }
+
+      res.json(updatedBooking);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      console.error("Booking update error:", err);
+      res.status(500).json({ message: "Internal server error" });
     }
-
-    res.json(updatedBooking);
   });
 
   app.delete(api.bookings.delete.path, requireAuth, async (req, res) => {
