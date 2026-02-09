@@ -210,7 +210,9 @@ export async function registerRoutes(
         receipt,
         totalCost,
         balance,
-        hotelId: hotelId
+        hotelId: hotelId,
+        numberOfRooms: body.numberOfRooms ?? 1,
+        comments: body.comments ?? ""
       });
       res.status(201).json(booking);
     } catch (err) {
