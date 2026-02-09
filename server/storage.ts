@@ -140,23 +140,56 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(bookings).where(eq(bookings.hotelId, hotelId)).orderBy(desc(bookings.checkIn));
   }
 
-  // Analytics (Simplified Implementations)
+  // Analytics
   async getOccupancyStats(hotelId: number | undefined): Promise<OccupancyStats[]> {
-    // This is a complex query to calculate daily occupancy. 
-    // For MVP, we'll return a mock or simple calculation if no real data.
-    // In a real app, this would involve generating a date series and joining with bookings.
-    // For now, let's just return some dummy data based on recent bookings or empty array.
-    // Ideally, we should implement this logic. 
-    // Let's stub it to return empty for now, or maybe aggregated by checkIn date which is easier.
+    if (!hotelId) return [];
+
+    // Get hotel total rooms
+    const hotel = await this.getHotel(hotelId);
+    if (!hotel) return [];
+
+    const bookings = await this.getBookingsByHotel(hotelId);
     
-    // Simple approach: Group by checkIn date (approximation for daily occupancy check-in)
-    // A proper implementation requires generating dates.
-    return []; 
+    // Group by check-in date for daily occupancy
+    const statsMap = new Map<string, number>();
+    bookings.forEach(b => {
+      const dateStr = b.checkIn.toISOString().split('T')[0];
+      statsMap.set(dateStr, (statsMap.get(dateStr) || 0) + b.numberOfRooms);
+    });
+
+    return Array.from(statsMap.entries()).map(([date, occupied]) => ({
+      date,
+      occupied,
+      percentage: Math.round((occupied / hotel.totalRooms) * 100)
+    }));
   }
 
   async getRevenueStats(hotelId: number | undefined): Promise<RevenueStats[]> {
-    // Similar to above, stubbing for MVP complexity constraints.
-    return [];
+    if (!hotelId) return { monthly: [], yearly: [], byAgency: [] } as any;
+
+    const bookings = await this.getBookingsByHotel(hotelId);
+    const agencies = await this.getAgencies();
+    const agencyMap = new Map(agencies.map(a => [a.id, a.name]));
+
+    const monthlyMap = new Map<string, number>();
+    const yearlyMap = new Map<string, number>();
+    const agencyRevMap = new Map<string, number>();
+
+    bookings.forEach(b => {
+      const month = b.checkIn.toLocaleString('default', { month: 'short' });
+      const year = b.checkIn.getFullYear().toString();
+      const agencyName = b.agencyId ? (agencyMap.get(b.agencyId) || "Unknown") : "Direct";
+
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + b.receipt);
+      yearlyMap.set(year, (yearlyMap.get(year) || 0) + b.receipt);
+      agencyRevMap.set(agencyName, (agencyRevMap.get(agencyName) || 0) + b.receipt);
+    });
+
+    return {
+      monthly: Array.from(monthlyMap.entries()).map(([name, revenue]) => ({ name, revenue: revenue / 100 })),
+      yearly: Array.from(yearlyMap.entries()).map(([name, revenue]) => ({ name, revenue: revenue / 100 })),
+      byAgency: Array.from(agencyRevMap.entries()).map(([name, revenue]) => ({ name, revenue: revenue / 100 }))
+    } as any;
   }
 }
 

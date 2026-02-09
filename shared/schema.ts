@@ -42,6 +42,8 @@ export const bookings = pgTable("bookings", {
   totalCost: integer("total_cost").notNull(), // In cents
   receipt: integer("receipt").notNull().default(0), // In cents (Amount Paid)
   balance: integer("balance").notNull().default(0), // In cents
+  numberOfRooms: integer("number_of_rooms").notNull().default(1),
+  comments: text("comments"),
   status: text("status", { enum: bookingStatuses }).notNull().default("confirmed"),
   createdAt: timestamp("created_at").defaultNow(),
 });
