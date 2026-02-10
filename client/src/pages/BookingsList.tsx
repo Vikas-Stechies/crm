@@ -1,7 +1,7 @@
 import { useBookings } from "@/hooks/use-bookings";
 import { format } from "date-fns";
 import { Link } from "wouter";
-import { Plus, Search, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Search, Calendar as CalendarIcon, MessageSquare, Hotel } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -65,6 +65,19 @@ export default function BookingsList() {
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Check Out</p>
                     <p className="text-sm font-medium">{format(new Date(booking.checkOut), "MMM d, yyyy")}</p>
                   </div>
+                </div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Hotel className="w-4 h-4" />
+                    <span>{booking.numberOfRooms} Room{booking.numberOfRooms !== 1 ? 's' : ''}</span>
+                  </div>
+                  {booking.comments && (
+                    <div className="flex items-center gap-1.5 italic line-clamp-1">
+                      <MessageSquare className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{booking.comments}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-3 flex justify-between items-center pt-3 border-t border-dashed">
