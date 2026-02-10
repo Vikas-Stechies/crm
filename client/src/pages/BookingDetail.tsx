@@ -27,6 +27,8 @@ const formSchema = z.object({
   receipt: z.coerce.number().min(0).default(0),
   status: z.enum(["confirmed", "checked_in", "checked_out", "cancelled"]),
   hotelId: z.number(), // Hidden field
+  numberOfRooms: z.coerce.number().min(1, "Number of rooms must be at least 1"),
+  comments: z.string().optional(),
 });
 
 export default function BookingDetail() {
@@ -56,6 +58,8 @@ export default function BookingDetail() {
       checkIn: new Date(),
       checkOut: new Date(new Date().setDate(new Date().getDate() + 1)),
       hotelId: user?.hotelId || 1, // Default fallback
+      numberOfRooms: 1,
+      comments: "",
     },
   });
 
@@ -71,6 +75,8 @@ export default function BookingDetail() {
         receipt: booking.receipt / 100,
         status: booking.status as any,
         hotelId: booking.hotelId,
+        numberOfRooms: booking.numberOfRooms || 1,
+        comments: booking.comments || "",
       });
     }
   }, [booking, form]);
@@ -128,14 +134,44 @@ export default function BookingDetail() {
         <div className="lg:col-span-2 space-y-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 bg-white p-6 rounded-2xl shadow-sm border border-border/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="guestName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Guest Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John Doe" className="h-12 rounded-xl" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="numberOfRooms"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Rooms</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" className="h-12 rounded-xl" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="guestName"
+                name="comments"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Guest Name</FormLabel>
+                    <FormLabel>Comments</FormLabel>
                     <FormControl>
-                      <Input placeholder="John Doe" className="h-12 rounded-xl" {...field} />
+                      <Input placeholder="Extra towels, late check-in, etc." className="h-12 rounded-xl" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

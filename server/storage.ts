@@ -153,15 +153,17 @@ export class DatabaseStorage implements IStorage {
     // Group by check-in date for daily occupancy
     const statsMap = new Map<string, number>();
     bookings.forEach(b => {
-      const dateStr = b.checkIn.toISOString().split('T')[0];
-      statsMap.set(dateStr, (statsMap.get(dateStr) || 0) + b.numberOfRooms);
+      // Ensure b.checkIn is a Date object
+      const checkInDate = new Date(b.checkIn);
+      const dateStr = checkInDate.toISOString().split('T')[0];
+      statsMap.set(dateStr, (statsMap.get(dateStr) || 0) + (b.numberOfRooms || 1));
     });
 
     return Array.from(statsMap.entries()).map(([date, occupied]) => ({
       date,
       occupied,
-      percentage: Math.round((occupied / hotel.totalRooms) * 100)
-    }));
+      percentage: Math.min(100, Math.round((occupied / hotel.totalRooms) * 100))
+    })).sort((a, b) => a.date.localeCompare(b.date));
   }
 
   async getRevenueStats(hotelId: number | undefined): Promise<RevenueStats[]> {
@@ -176,13 +178,14 @@ export class DatabaseStorage implements IStorage {
     const agencyRevMap = new Map<string, number>();
 
     bookings.forEach(b => {
-      const month = b.checkIn.toLocaleString('default', { month: 'short' });
-      const year = b.checkIn.getFullYear().toString();
+      const checkInDate = new Date(b.checkIn);
+      const month = checkInDate.toLocaleString('default', { month: 'short' });
+      const year = checkInDate.getFullYear().toString();
       const agencyName = b.agencyId ? (agencyMap.get(b.agencyId) || "Unknown") : "Direct";
 
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + b.receipt);
-      yearlyMap.set(year, (yearlyMap.get(year) || 0) + b.receipt);
-      agencyRevMap.set(agencyName, (agencyRevMap.get(agencyName) || 0) + b.receipt);
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + (b.receipt || 0));
+      yearlyMap.set(year, (yearlyMap.get(year) || 0) + (b.receipt || 0));
+      agencyRevMap.set(agencyName, (agencyRevMap.get(agencyName) || 0) + (b.receipt || 0));
     });
 
     return {
