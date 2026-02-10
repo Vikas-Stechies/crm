@@ -8,11 +8,29 @@ export function useBookings() {
     queryFn: async () => {
       const res = await fetch(api.bookings.list.path, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch bookings");
-      // JSON dates come as strings, let Zod coerce them if needed or handle manually
-      // Our schema uses z.coerce.date() but that's for input.
-      // Response types are Date objects in TS, but JSON is string.
-      // We rely on standard JSON parsing.
       return api.bookings.list.responses[200].parse(await res.json());
+    },
+  });
+}
+
+export function useOccupancy() {
+  return useQuery({
+    queryKey: [api.analytics.occupancy.path],
+    queryFn: async () => {
+      const res = await fetch(api.analytics.occupancy.path, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch occupancy");
+      return api.analytics.occupancy.responses[200].parse(await res.json());
+    },
+  });
+}
+
+export function useRevenue() {
+  return useQuery({
+    queryKey: [api.analytics.revenue.path],
+    queryFn: async () => {
+      const res = await fetch(api.analytics.revenue.path, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch revenue");
+      return api.analytics.revenue.responses[200].parse(await res.json());
     },
   });
 }

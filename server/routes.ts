@@ -213,7 +213,7 @@ export async function registerRoutes(
         hotelId: hotelId,
         numberOfRooms: body.numberOfRooms ?? 1,
         comments: body.comments ?? ""
-      });
+      } as any);
       res.status(201).json(booking);
     } catch (err) {
       if (err instanceof z.ZodError) {

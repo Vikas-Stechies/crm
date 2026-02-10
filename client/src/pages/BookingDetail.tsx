@@ -97,7 +97,6 @@ export default function BookingDetail() {
       receipt: Math.round(data.receipt * 100),
       // totalCost and balance are handled by backend or logic
       totalCost: Math.round(totalCost * 100),
-      balance: Math.round(balance * 100),
     };
 
     if (isNew) {

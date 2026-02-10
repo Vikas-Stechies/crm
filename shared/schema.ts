@@ -55,8 +55,6 @@ export const insertAgencySchema = createInsertSchema(agencies).omit({ id: true, 
 export const insertBookingSchema = createInsertSchema(bookings).omit({ 
   id: true, 
   createdAt: true, 
-  balance: true,
-  totalCost: true // We can calculate this, but allowing input is fine too. Let's make it optional in input if calc on backend, but for now let frontend send it or backend calc.
 }).extend({
   checkIn: z.coerce.date(),
   checkOut: z.coerce.date(),
@@ -64,6 +62,8 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
   roomRent: z.coerce.number(),
   addOns: z.coerce.number().default(0),
   receipt: z.coerce.number().default(0),
+  totalCost: z.coerce.number().optional(),
+  balance: z.coerce.number().optional(),
 });
 
 // Types

@@ -1,10 +1,43 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useBookings } from "@/hooks/use-bookings";
+import { useBookings, useOccupancy, useRevenue } from "@/hooks/use-bookings";
 import { StatCard } from "@/components/ui/StatCard";
 import { LogIn, LogOut, Calendar, Plus } from "lucide-react";
 import { format, isToday, isSameDay } from "date-fns";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
+
+function OccupancyChart() {
+  const { data: stats } = useOccupancy();
+  if (!stats) return null;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={stats}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="date" />
+        <YAxis unit="%" />
+        <Tooltip />
+        <Line type="monotone" dataKey="percentage" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+function RevenueChart() {
+  const { data: stats } = useRevenue();
+  if (!stats?.monthly) return null;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={stats.monthly}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']} />
+        <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -52,6 +85,21 @@ export default function Dashboard() {
           icon={<Calendar className="w-6 h-6" />} 
           className="border-l-4 border-l-blue-500"
         />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
+          <h3 className="font-bold text-lg mb-4">Occupancy</h3>
+          <div className="h-[300px]">
+            <OccupancyChart />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
+          <h3 className="font-bold text-lg mb-4">Revenue</h3>
+          <div className="h-[300px]">
+            <RevenueChart />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
