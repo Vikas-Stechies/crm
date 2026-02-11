@@ -92,3 +92,13 @@ export function useDeleteBooking() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.bookings.list.path] }),
   });
 }
+export function useForecast() {
+  return useQuery({
+    queryKey: [api.analytics.forecast.path],
+    queryFn: async () => {
+      const res = await fetch(api.analytics.forecast.path, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch forecast");
+      return api.analytics.forecast.responses[200].parse(await res.json());
+    },
+  });
+}

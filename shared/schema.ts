@@ -54,9 +54,9 @@ export const bookings = pgTable("bookings", {
 export const insertHotelSchema = createInsertSchema(hotels).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertAgencySchema = createInsertSchema(agencies).omit({ id: true, createdAt: true });
-export const insertBookingSchema = createInsertSchema(bookings).omit({ 
-  id: true, 
-  createdAt: true, 
+export const insertBookingSchema = createInsertSchema(bookings).omit({
+  id: true,
+  createdAt: true,
 }).extend({
   checkIn: z.coerce.date(),
   checkOut: z.coerce.date(),
@@ -91,4 +91,12 @@ export type OccupancyStats = {
 export type RevenueStats = {
   name: string; // Month or Agency Name
   revenue: number;
+};
+export type ForecastStats = {
+  date: string;
+  occupied: number;
+  vacant: number;
+  checkIns: number;
+  checkOuts: number;
+  percentage: number;
 };

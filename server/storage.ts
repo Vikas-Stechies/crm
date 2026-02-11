@@ -5,7 +5,8 @@ import {
   type Hotel, type InsertHotel,
   type Booking, type InsertBooking,
   type Agency, type InsertAgency,
-  type OccupancyStats, type RevenueStats
+  type OccupancyStats, type RevenueStats,
+  type ForecastStats
 } from "@shared/schema";
 import { eq, and, sql, desc, gte, lte } from "drizzle-orm";
 
@@ -39,7 +40,7 @@ export interface IStorage {
   deleteBooking(id: number): Promise<void>;
   getBookings(): Promise<Booking[]>;
   getBookingsByHotel(hotelId: number): Promise<Booking[]>;
-  
+
   // Analytics
   getOccupancyStats(hotelId: number | undefined): Promise<OccupancyStats[]>;
   getRevenueStats(hotelId: number | undefined): Promise<{
@@ -47,6 +48,7 @@ export interface IStorage {
     yearly: RevenueStats[];
     byAgency: RevenueStats[];
   }>;
+  getForecastStats(hotelId: number | undefined): Promise<ForecastStats[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -164,7 +166,7 @@ export class DatabaseStorage implements IStorage {
     if (!hotel) return [];
 
     const bookings = await this.getBookingsByHotel(hotelId);
-    
+
     // Group by check-in date for daily occupancy
     const statsMap = new Map<string, number>();
     bookings.forEach(b => {
@@ -223,6 +225,72 @@ export class DatabaseStorage implements IStorage {
         .map(([name, revenue]) => ({ name, revenue: revenue / 100 }))
     };
   }
+
+  async getForecastStats(hotelId: number | undefined): Promise<ForecastStats[]> {
+    if (!hotelId) return [];
+
+    const hotel = await this.getHotel(hotelId);
+    if (!hotel) return [];
+
+    // Get all active bookings for this hotel
+    const bookings = await this.getBookingsByHotel(hotelId);
+
+    const stats: ForecastStats[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Loop for 5 days (Today + 4 days)
+    for (let i = 0; i < 5; i++) {
+      const currentDate = new Date(today);
+      currentDate.setDate(today.getDate() + i);
+
+      const nextDate = new Date(currentDate);
+      nextDate.setDate(currentDate.getDate() + 1);
+
+      let occupied = 0;
+      let checkIns = 0;
+      let checkOuts = 0;
+
+      bookings.forEach(b => {
+        const checkIn = new Date(b.checkIn);
+        const checkOut = new Date(b.checkOut);
+
+        // Normalize times to midnight for accurate comparison
+        checkIn.setHours(0, 0, 0, 0);
+        checkOut.setHours(0, 0, 0, 0);
+
+        // Occupied: If current date falls within the stay range (inclusive of check-in, exclusive of check-out)
+        if (checkIn <= currentDate && checkOut > currentDate && b.status !== 'cancelled') {
+          occupied += (b.numberOfRooms || 1);
+        }
+
+        // Check-ins: If check-in date matches current date
+        if (checkIn.getTime() === currentDate.getTime() && b.status !== 'cancelled') {
+          checkIns += (b.numberOfRooms || 1);
+        }
+
+        // Check-outs: If check-out date matches current date
+        if (checkOut.getTime() === currentDate.getTime() && b.status !== 'cancelled') {
+          checkOuts += (b.numberOfRooms || 1);
+        }
+      });
+
+      const vacant = Math.max(0, hotel.totalRooms - occupied);
+      const percentage = Math.min(100, Math.round((occupied / hotel.totalRooms) * 100));
+
+      stats.push({
+        date: currentDate.toISOString(),
+        occupied,
+        vacant,
+        checkIns,
+        checkOuts,
+        percentage
+      });
+    }
+
+    return stats;
+  }
+
 }
 
 export const storage = new DatabaseStorage();

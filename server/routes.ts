@@ -60,10 +60,10 @@ export async function registerRoutes(
       try {
         const user = await storage.getUserByEmail(username);
         if (!user) return done(null, false, { message: "Invalid email" });
-        
+
         const isValid = await comparePasswords(password, user.password);
         if (!isValid) return done(null, false, { message: "Invalid password" });
-        
+
         return done(null, user);
       } catch (err) {
         return done(err);
@@ -182,9 +182,9 @@ export async function registerRoutes(
     const user = req.user as any;
     let bookings;
     if (user.role === 'admin' || !user.hotelId) {
-       bookings = await storage.getBookings();
+      bookings = await storage.getBookings();
     } else {
-       bookings = await storage.getBookingsByHotel(user.hotelId);
+      bookings = await storage.getBookingsByHotel(user.hotelId);
     }
     res.json(bookings);
   });
@@ -200,17 +200,17 @@ export async function registerRoutes(
       // Auto-calculate fields to ensure consistency
       const body = api.bookings.create.input.parse(req.body);
       const { roomRent, addOns = 0, receipt = 0, checkIn, checkOut, ...rest } = body;
-      
+
       const totalCost = roomRent + addOns;
       const balance = totalCost - receipt;
-      
+
       const user = req.user as any;
       const hotelId = user.role === 'admin' ? body.hotelId : user.hotelId;
 
       if (!hotelId) {
         return res.status(400).json({ message: "Hotel ID is required" });
       }
-      
+
       const booking = await storage.createBooking({
         ...rest,
         checkIn: new Date(checkIn),
@@ -244,12 +244,12 @@ export async function registerRoutes(
       if (!oldBooking) return res.sendStatus(404);
 
       const body = api.bookings.update.input.parse(req.body);
-      
+
       // Merge old data with updates to calculate new totals
       const roomRent = body.roomRent ?? oldBooking.roomRent;
       const addOns = body.addOns ?? oldBooking.addOns;
       const receipt = body.receipt ?? oldBooking.receipt;
-      
+
       const totalCost = roomRent + addOns;
       const balance = totalCost - receipt;
 
@@ -267,7 +267,7 @@ export async function registerRoutes(
       // Email Trigger Logic
       const user = req.user as any;
       if (oldBooking.totalCost !== updatedBooking.totalCost || oldBooking.receipt !== updatedBooking.receipt) {
-         sendComparisonEmail("owner@example.com", oldBooking, updatedBooking); 
+        sendComparisonEmail("owner@example.com", oldBooking, updatedBooking);
       }
 
       res.json(updatedBooking);
@@ -287,7 +287,7 @@ export async function registerRoutes(
     const user = req.user as any;
     // Manager cannot delete
     if (user.role === 'manager') return res.status(403).json({ message: "Managers cannot delete bookings" });
-    
+
     await storage.deleteBooking(Number(req.params.id));
     res.sendStatus(200);
   });
@@ -304,7 +304,11 @@ export async function registerRoutes(
     const stats = await storage.getRevenueStats(user.hotelId);
     res.json(stats);
   });
-
+  app.get(api.analytics.forecast.path, requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const stats = await storage.getForecastStats(user.hotelId);
+    res.json(stats);
+  });
   // Seed Admin User if none exists
   const users = await storage.getUsers();
   if (users.length === 0) {

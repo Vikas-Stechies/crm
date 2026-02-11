@@ -1,12 +1,12 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useBookings, useOccupancy, useRevenue } from "@/hooks/use-bookings";
+import { useBookings, useOccupancy, useRevenue, useForecast } from "@/hooks/use-bookings";
 import { StatCard } from "@/components/ui/StatCard";
 import { LogIn, LogOut, Calendar, Plus } from "lucide-react";
 import { format, isToday, isSameDay } from "date-fns";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 function OccupancyChart() {
   const { data: stats } = useOccupancy();
   if (!stats) return null;
@@ -42,14 +42,14 @@ function RevenueChart() {
 export default function Dashboard() {
   const { user } = useAuth();
   const { data: bookings, isLoading } = useBookings();
-
+  const { data: forecast } = useForecast();
   if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
   const today = new Date();
-  
+
   const checkIns = bookings?.filter(b => isSameDay(new Date(b.checkIn), today)) || [];
   const checkOuts = bookings?.filter(b => isSameDay(new Date(b.checkOut), today)) || [];
-  
+
   const activeBookings = bookings?.filter(b => b.status === 'checked_in') || [];
 
   return (
@@ -67,22 +67,22 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard 
-          title="Today's Check-ins" 
-          value={checkIns.length} 
+        <StatCard
+          title="Today's Check-ins"
+          value={checkIns.length}
           icon={<LogIn className="w-6 h-6" />}
           className="border-l-4 border-l-green-500"
         />
-        <StatCard 
-          title="Today's Check-outs" 
-          value={checkOuts.length} 
-          icon={<LogOut className="w-6 h-6" />} 
+        <StatCard
+          title="Today's Check-outs"
+          value={checkOuts.length}
+          icon={<LogOut className="w-6 h-6" />}
           className="border-l-4 border-l-orange-500"
         />
-        <StatCard 
-          title="Active Guests" 
-          value={activeBookings.length} 
-          icon={<Calendar className="w-6 h-6" />} 
+        <StatCard
+          title="Active Guests"
+          value={activeBookings.length}
+          icon={<Calendar className="w-6 h-6" />}
           className="border-l-4 border-l-blue-500"
         />
       </div>
@@ -98,6 +98,54 @@ export default function Dashboard() {
           <h3 className="font-bold text-lg mb-4">Revenue</h3>
           <div className="h-[300px]">
             <RevenueChart />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            5-Day Occupancy Forecast
+          </h3>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Occupied</TableHead>
+                  <TableHead>Vacant</TableHead>
+                  <TableHead>Check-ins</TableHead>
+                  <TableHead>Check-outs</TableHead>
+                  <TableHead className="text-right">Occupancy %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {forecast?.map((day) => (
+                  <TableRow key={day.date}>
+                    <TableCell className="font-medium">
+                      {format(new Date(day.date), "EEE, MMM d")}
+                    </TableCell>
+                    <TableCell>{day.occupied}</TableCell>
+                    <TableCell>{day.vacant}</TableCell>
+                    <TableCell className="text-green-600">+{day.checkIns}</TableCell>
+                    <TableCell className="text-orange-600">-{day.checkOuts}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${day.percentage >= 80 ? 'bg-red-100 text-red-800' :
+                        day.percentage >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                        {day.percentage}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!forecast && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                      Loading forecast...
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </div>
       </div>
