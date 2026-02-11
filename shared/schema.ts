@@ -27,6 +27,8 @@ export const users = pgTable("users", {
 export const agencies = pgTable("agencies", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
