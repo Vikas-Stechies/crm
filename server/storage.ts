@@ -42,7 +42,11 @@ export interface IStorage {
   
   // Analytics
   getOccupancyStats(hotelId: number | undefined): Promise<OccupancyStats[]>;
-  getRevenueStats(hotelId: number | undefined): Promise<RevenueStats[]>;
+  getRevenueStats(hotelId: number | undefined): Promise<{
+    monthly: RevenueStats[];
+    yearly: RevenueStats[];
+    byAgency: RevenueStats[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -177,8 +181,12 @@ export class DatabaseStorage implements IStorage {
     })).sort((a, b) => a.date.localeCompare(b.date));
   }
 
-  async getRevenueStats(hotelId: number | undefined): Promise<RevenueStats[]> {
-    if (!hotelId) return { monthly: [], yearly: [], byAgency: [] } as any;
+  async getRevenueStats(hotelId: number | undefined): Promise<{
+    monthly: RevenueStats[];
+    yearly: RevenueStats[];
+    byAgency: RevenueStats[];
+  }> {
+    if (!hotelId) return { monthly: [], yearly: [], byAgency: [] };
 
     const bookings = await this.getBookingsByHotel(hotelId);
     const agencies = await this.getAgencies();
@@ -188,22 +196,32 @@ export class DatabaseStorage implements IStorage {
     const yearlyMap = new Map<string, number>();
     const agencyRevMap = new Map<string, number>();
 
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
     bookings.forEach(b => {
       const checkInDate = new Date(b.checkIn);
-      const month = checkInDate.toLocaleString('default', { month: 'short' });
+      const month = months[checkInDate.getMonth()];
       const year = checkInDate.getFullYear().toString();
       const agencyName = b.agencyId ? (agencyMap.get(b.agencyId) || "Unknown") : "Direct";
 
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + (b.receipt || 0));
-      yearlyMap.set(year, (yearlyMap.get(year) || 0) + (b.receipt || 0));
-      agencyRevMap.set(agencyName, (agencyRevMap.get(agencyName) || 0) + (b.receipt || 0));
+      // Use totalCost for revenue as it represents the booking value
+      const amount = b.totalCost || 0;
+
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + amount);
+      yearlyMap.set(year, (yearlyMap.get(year) || 0) + amount);
+      agencyRevMap.set(agencyName, (agencyRevMap.get(agencyName) || 0) + amount);
     });
 
     return {
-      monthly: Array.from(monthlyMap.entries()).map(([name, revenue]) => ({ name, revenue: revenue / 100 })),
-      yearly: Array.from(yearlyMap.entries()).map(([name, revenue]) => ({ name, revenue: revenue / 100 })),
-      byAgency: Array.from(agencyRevMap.entries()).map(([name, revenue]) => ({ name, revenue: revenue / 100 }))
-    } as any;
+      monthly: months
+        .filter(m => monthlyMap.has(m))
+        .map(name => ({ name, revenue: (monthlyMap.get(name) || 0) / 100 })),
+      yearly: Array.from(yearlyMap.entries())
+        .map(([name, revenue]) => ({ name, revenue: revenue / 100 }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      byAgency: Array.from(agencyRevMap.entries())
+        .map(([name, revenue]) => ({ name, revenue: revenue / 100 }))
+    };
   }
 }
 

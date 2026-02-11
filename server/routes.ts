@@ -302,12 +302,7 @@ export async function registerRoutes(
   app.get(api.analytics.revenue.path, requireAuth, async (req, res) => {
     const user = req.user as any;
     const stats = await storage.getRevenueStats(user.hotelId);
-    // Mock response structure as per schema if storage returns empty
-    res.json({
-      monthly: [],
-      yearly: [],
-      byAgency: []
-    });
+    res.json(stats);
   });
 
   // Seed Admin User if none exists
