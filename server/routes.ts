@@ -167,6 +167,16 @@ export async function registerRoutes(
     res.status(201).json(agency);
   });
 
+  app.patch(api.agencies.update.path, requireAuth, async (req, res) => {
+    const agency = await storage.updateAgency(Number(req.params.id), req.body);
+    res.json(agency);
+  });
+
+  app.delete(api.agencies.delete.path, requireAuth, async (req, res) => {
+    await storage.deleteAgency(Number(req.params.id));
+    res.sendStatus(200);
+  });
+
   // Booking Routes
   app.get(api.bookings.list.path, requireAuth, async (req, res) => {
     const user = req.user as any;

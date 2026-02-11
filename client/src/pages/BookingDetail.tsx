@@ -294,7 +294,7 @@ export default function BookingDetail() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="0">None</SelectItem>
+                          <SelectItem value="0">None (Direct)</SelectItem>
                           {agencies?.map(a => (
                             <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
                           ))}

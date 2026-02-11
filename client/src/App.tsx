@@ -11,6 +11,7 @@ import BookingsList from "@/pages/BookingsList";
 import BookingDetail from "@/pages/BookingDetail";
 import Occupancy from "@/pages/Occupancy";
 import Revenue from "@/pages/Revenue";
+import Agencies from "@/pages/Agencies";
 import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
@@ -52,6 +53,10 @@ function Router() {
       
       <Route path="/revenue">
         <ProtectedRoute component={Revenue} path="/revenue" />
+      </Route>
+
+      <Route path="/agencies">
+        <ProtectedRoute component={Agencies} path="/agencies" />
       </Route>
       
       <Route path="/admin">

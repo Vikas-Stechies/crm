@@ -28,6 +28,8 @@ export interface IStorage {
   // Agencies
   getAgency(id: number): Promise<Agency | undefined>;
   createAgency(agency: InsertAgency): Promise<Agency>;
+  updateAgency(id: number, agency: Partial<InsertAgency>): Promise<Agency>;
+  deleteAgency(id: number): Promise<void>;
   getAgencies(): Promise<Agency[]>;
 
   // Bookings
@@ -106,6 +108,15 @@ export class DatabaseStorage implements IStorage {
   async createAgency(insertAgency: InsertAgency): Promise<Agency> {
     const [agency] = await db.insert(agencies).values(insertAgency).returning();
     return agency;
+  }
+
+  async updateAgency(id: number, updates: Partial<InsertAgency>): Promise<Agency> {
+    const [agency] = await db.update(agencies).set(updates).where(eq(agencies.id, id)).returning();
+    return agency;
+  }
+
+  async deleteAgency(id: number): Promise<void> {
+    await db.delete(agencies).where(eq(agencies.id, id));
   }
 
   async getAgencies(): Promise<Agency[]> {

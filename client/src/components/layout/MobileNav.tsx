@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Calendar, PieChart, DollarSign, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Calendar, PieChart, DollarSign, Settings, LogOut, Building2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ export function MobileNav() {
   ] : [
     { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
     { href: "/bookings", icon: Calendar, label: "Bookings" },
+    { href: "/agencies", icon: Building2, label: "Agencies" },
     { href: "/occupancy", icon: PieChart, label: "Occupancy" },
     { href: "/revenue", icon: DollarSign, label: "Revenue" },
   ];

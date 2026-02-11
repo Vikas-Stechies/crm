@@ -134,6 +134,23 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/agencies/:id' as const,
+      input: insertAgencySchema.partial(),
+      responses: {
+        200: z.custom<typeof agencies.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/agencies/:id' as const,
+      responses: {
+        200: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   bookings: {
     list: {
