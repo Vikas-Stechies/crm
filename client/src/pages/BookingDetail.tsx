@@ -36,11 +36,11 @@ export default function BookingDetail() {
   const [, setLocation] = useLocation();
   const isNew = match && params?.id === "new";
   const id = match && !isNew ? parseInt(params!.id) : undefined;
-  
+
   const { data: bookings, isLoading: isLoadingBookings } = useBookings();
   const { data: agencies } = useAgencies();
   const { user } = useAuth();
-  
+
   const createMutation = useCreateBooking();
   const updateMutation = useUpdateBooking();
   const deleteMutation = useDeleteBooking();
@@ -85,7 +85,7 @@ export default function BookingDetail() {
   const roomRent = form.watch("roomRent");
   const addOns = form.watch("addOns");
   const receipt = form.watch("receipt");
-  
+
   const totalCost = (Number(roomRent) || 0) + (Number(addOns) || 0);
   const balance = totalCost - (Number(receipt) || 0);
 
@@ -121,7 +121,7 @@ export default function BookingDetail() {
   if (isLoadingBookings && !isNew) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="p-4 md:p-8 pb-24 md:pb-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 space-y-6 pb-24 md:pb-8">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => setLocation("/bookings")}>
           <ArrowLeft className="h-5 w-5" />
@@ -347,17 +347,17 @@ export default function BookingDetail() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
                   className="flex-1 h-12 rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
                 >
                   {(createMutation.isPending || updateMutation.isPending) ? <Loader2 className="animate-spin" /> : <><Save className="mr-2 h-4 w-4" /> Save Booking</>}
                 </Button>
-                
+
                 {!isNew && user?.role !== 'manager' && (
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant="destructive"
                     onClick={handleDelete}
                     disabled={deleteMutation.isPending}

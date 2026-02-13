@@ -9,10 +9,20 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import MemoryStore from "memorystore";
+import nodemailer from "nodemailer";
 
 const scryptAsync = promisify(scrypt);
 const SessionStore = MemoryStore(session);
-
+// Setup Nodemailer Transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  secure: process.env.SMTP_SECURE === "true",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 // Auth Helper Functions
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -28,13 +38,78 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 // Email Helper (Stub)
-function sendComparisonEmail(ownerEmail: string, oldData: any, newData: any) {
-  console.log("--- SENDING COMPARISON EMAIL ---");
-  console.log(`To: ${ownerEmail}`);
-  console.log("Subject: Booking Updated - Comparison Report");
-  console.log("Old Data:", JSON.stringify(oldData, null, 2));
-  console.log("New Data:", JSON.stringify(newData, null, 2));
-  console.log("--------------------------------");
+async function sendComparisonEmail(ownerEmail: string, oldData: any, newData: any) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log("SMTP credentials missing in .env. Skipping email send to:", ownerEmail);
+    return;
+  }
+
+  // Format Helpers
+  const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const formatDate = (date: any) => new Date(date).toLocaleDateString();
+
+  // Create an HTML table comparing the old and new data
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #1e3a8a;">Booking Update Notification</h2>
+      <p>The booking for <strong>${newData.guestName}</strong> has been updated.</p>
+      
+      <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%; text-align: left;">
+        <thead>
+          <tr style="background-color: #f3f4f6;">
+            <th>Field</th>
+            <th>Previous Value</th>
+            <th>Updated Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${Object.keys(newData).map(key => {
+    // Ignore internal database fields
+    if (['id', 'hotelId', 'createdAt', 'agencyId'].includes(key)) return '';
+
+    let oldVal = oldData[key];
+    let newVal = newData[key];
+
+    // Format specific fields nicely
+    if (['roomRent', 'addOns', 'receipt', 'totalCost', 'balance'].includes(key)) {
+      oldVal = formatCurrency(oldVal || 0);
+      newVal = formatCurrency(newVal || 0);
+    } else if (['checkIn', 'checkOut'].includes(key)) {
+      oldVal = formatDate(oldVal);
+      newVal = formatDate(newVal);
+    }
+
+    const isChanged = String(oldVal) !== String(newVal);
+    // Highlight changed rows in yellow
+    const rowStyle = isChanged ? 'background-color: #fef08a;' : '';
+
+    return `
+              <tr style="${rowStyle}">
+                <td style="text-transform: capitalize;"><strong>${key.replace(/([A-Z])/g, ' $1').trim()}</strong></td>
+                <td>${oldVal ?? 'N/A'}</td>
+                <td>${newVal ?? 'N/A'}</td>
+              </tr>
+            `;
+  }).join('')}
+        </tbody>
+      </table>
+      <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
+        <em>Rows highlighted in yellow indicate modified values.</em>
+      </p>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"Hotel CRM" <noreply@hotelcrm.com>',
+      to: ownerEmail,
+      subject: `Booking Updated: ${newData.guestName}`,
+      html: htmlContent,
+    });
+    console.log(`Update email successfully sent to ${ownerEmail}`);
+  } catch (error) {
+    console.error("Error sending update email:", error);
+  }
 }
 
 export async function registerRoutes(
@@ -338,7 +413,7 @@ export async function registerRoutes(
       // Email Trigger Logic
       const user = req.user as any;
       if (oldBooking.totalCost !== updatedBooking.totalCost || oldBooking.receipt !== updatedBooking.receipt) {
-        sendComparisonEmail("owner@example.com", oldBooking, updatedBooking);
+        sendComparisonEmail("umesh.sharma.dk@gmail.com", oldBooking, updatedBooking);
       }
 
       res.json(updatedBooking);

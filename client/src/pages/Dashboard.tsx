@@ -1,12 +1,14 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useBookings, useOccupancy, useRevenue, useForecast } from "@/hooks/use-bookings";
+import { useHotels } from "@/hooks/use-hotels";
 import { StatCard } from "@/components/ui/StatCard";
-import { LogIn, LogOut, Calendar, Plus } from "lucide-react";
-import { format, isToday, isSameDay } from "date-fns";
+import { LogIn, LogOut, Calendar, Plus, Bed, DoorOpen } from "lucide-react";
+import { format, isSameDay } from "date-fns";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 function OccupancyChart() {
   const { data: stats } = useOccupancy();
   if (!stats) return null;
@@ -41,22 +43,52 @@ function RevenueChart() {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { data: bookings, isLoading } = useBookings();
-  const { data: forecast } = useForecast();
+  const { data: bookings, isLoading: bookingsLoading } = useBookings();
+  const { data: forecast, isLoading: forecastLoading } = useForecast();
+  const { data: hotels, isLoading: hotelsLoading } = useHotels();
+
+  const isLoading = bookingsLoading || forecastLoading || hotelsLoading;
+
   if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
   const today = new Date();
 
+  // Normalize today to midnight for accurate occupancy comparisons
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const checkIns = bookings?.filter(b => isSameDay(new Date(b.checkIn), today)) || [];
   const checkOuts = bookings?.filter(b => isSameDay(new Date(b.checkOut), today)) || [];
 
-  const activeBookings = bookings?.filter(b => b.status === 'checked_in') || [];
+  // Find the user's assigned hotel
+  const assignedHotel = hotels?.find(h => h.id === user?.hotelId);
+
+  // Calculate Occupied Rooms Today
+  const occupiedTodayCount = bookings?.filter(b => {
+    if (b.status === 'cancelled') return false;
+    const checkIn = new Date(b.checkIn);
+    checkIn.setHours(0, 0, 0, 0);
+    const checkOut = new Date(b.checkOut);
+    checkOut.setHours(0, 0, 0, 0);
+    // Room is occupied if today falls inside the check-in (inclusive) and check-out (exclusive) dates
+    return todayStart >= checkIn && todayStart < checkOut;
+  }).reduce((sum, b) => sum + b.numberOfRooms, 0) || 0;
+
+  // Calculate Total Rooms (If admin with no specific hotel, sum all hotels)
+  const totalRooms = user?.role === 'admin' && !user?.hotelId
+    ? hotels?.reduce((sum, h) => sum + h.totalRooms, 0) || 0
+    : assignedHotel?.totalRooms || 0;
+
+  // Calculate Vacant Rooms Today
+  const vacantTodayCount = Math.max(0, totalRooms - occupiedTodayCount);
 
   return (
     <div className="p-4 md:p-8 space-y-8 pb-24 md:pb-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold font-display">Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-bold font-display">
+            {assignedHotel ? `${assignedHotel.name} Dashboard` : 'Dashboard'}
+          </h1>
           <p className="text-muted-foreground">{format(today, "EEEE, MMMM do, yyyy")}</p>
         </div>
         <Link href="/bookings/new">
@@ -66,7 +98,8 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Grid updated to 4 columns on large screens */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Today's Check-ins"
           value={checkIns.length}
@@ -79,13 +112,20 @@ export default function Dashboard() {
           icon={<LogOut className="w-6 h-6" />}
           className="border-l-4 border-l-orange-500"
         />
-        {/* <StatCard
-          title="Active Guests"
-          value={activeBookings.length}
-          icon={<Calendar className="w-6 h-6" />}
+        <StatCard
+          title="Today's Occupied"
+          value={occupiedTodayCount}
+          icon={<Bed className="w-6 h-6" />}
           className="border-l-4 border-l-blue-500"
-        /> */}
+        />
+        <StatCard
+          title="Today's Vacant"
+          value={vacantTodayCount}
+          icon={<DoorOpen className="w-6 h-6" />}
+          className="border-l-4 border-l-purple-500"
+        />
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Check-ins List */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
@@ -102,7 +142,6 @@ export default function Dashboard() {
                   <div className="flex justify-between items-center p-3 rounded-xl hover:bg-muted/50 transition-colors border border-border/30">
                     <div>
                       <p className="font-semibold">{booking.guestName}</p>
-                      {/* <p className="text-xs text-muted-foreground">Room: TBD</p> */}
                     </div>
                     <div className="text-right">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -145,23 +184,12 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
-          <h3 className="font-bold text-lg mb-4">Occupancy</h3>
-          <div className="h-[300px]">
-            <OccupancyChart />
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
-          <h3 className="font-bold text-lg mb-4">Revenue</h3>
-          <div className="h-[300px]">
-            <RevenueChart />
-          </div>
-        </div> */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" />
-            7-Day Occupancy Forecast
+            5-Day Occupancy Forecast
           </h3>
           <div className="rounded-md border">
             <Table>
@@ -211,8 +239,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-
     </div>
   );
 }

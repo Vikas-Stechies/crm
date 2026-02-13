@@ -37,17 +37,17 @@ export default function Login() {
 
   const onSubmit = (data: z.infer<typeof loginSchema>) => {
     loginMutation.mutate(data, {
-      onSuccess: (userData: any) => {
-        // Display the 10-day expiration warning as a popup on successful login
-        if (userData?.subscriptionWarning) {
-          toast({
-            title: "Subscription Notice",
-            description: userData.subscriptionWarning,
-            variant: "destructive",
-            duration: 10000, // Keep visible a bit longer
-          });
-        }
-      },
+      // onSuccess: (userData: any) => {
+      // Display the 10-day expiration warning as a popup on successful login
+      //   if (userData?.subscriptionWarning) {
+      //     toast({
+      //       title: "Subscription Notice",
+      //       description: userData.subscriptionWarning,
+      //       variant: "destructive",
+      //       duration: 10000, // Keep visible a bit longer
+      //     });
+      //   }
+      // },
       onError: (error) => {
         // Display the blocked/expired expiration as a popup
         toast({

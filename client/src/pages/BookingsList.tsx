@@ -1,7 +1,8 @@
-import { useBookings, useAgencies } from "@/hooks/use-bookings";
+import { useBookings, useAgencies, useDeleteBooking } from "@/hooks/use-bookings";
+import { useAuth } from "@/hooks/use-auth";
 import { format, parseISO } from "date-fns";
 import { Link, useLocation } from "wouter";
-import { Plus, Search, Calendar as CalendarIcon, MessageSquare, Hotel, X, ArrowUpDown, Building2 } from "lucide-react";
+import { Plus, Search, Calendar as CalendarIcon, MessageSquare, Hotel, X, ArrowUpDown, Building2, Trash2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function BookingsList() {
+  const { user } = useAuth();
+  const deleteMutation = useDeleteBooking();
   const { data: bookings, isLoading: bookingsLoading } = useBookings();
   const { data: agencies, isLoading: agenciesLoading } = useAgencies();
 
@@ -205,6 +208,8 @@ export default function BookingsList() {
           filteredBookings.map(booking => (
             <Link key={booking.id} href={`/bookings/${booking.id}`} className="block group">
               <div className="bg-white rounded-xl p-4 shadow-sm border border-border/50 hover:border-primary/50 transition-all hover:shadow-md">
+
+                {/* Header with Title, Badge, and Delete Button */}
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{booking.guestName}</h3>
@@ -215,7 +220,32 @@ export default function BookingsList() {
                       </span>
                     </p>
                   </div>
-                  <Badge status={booking.status} />
+
+                  <div className="flex items-center gap-2 relative z-10">
+                    <Badge status={booking.status} />
+
+                    {user?.role !== 'manager' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        disabled={deleteMutation.isPending && deleteMutation.variables === booking.id}
+                        onClick={(e) => {
+                          e.preventDefault(); // Prevents navigating to details page
+                          e.stopPropagation();
+                          if (confirm("Are you sure you want to delete this booking?")) {
+                            deleteMutation.mutate(booking.id);
+                          }
+                        }}
+                      >
+                        {deleteMutation.isPending && deleteMutation.variables === booking.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Highlight the relevant dates if filtering by occupancy */}
