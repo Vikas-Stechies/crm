@@ -158,30 +158,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics
-  async getOccupancyStats(hotelId: number | undefined): Promise<OccupancyStats[]> {
+  async getOccupancyStats(hotelId: number | undefined, month?: number, year?: number): Promise<OccupancyStats[]> {
     if (!hotelId) return [];
-
-    // Get hotel total rooms
     const hotel = await this.getHotel(hotelId);
     if (!hotel) return [];
 
+    const now = new Date();
+    const targetYear = year ?? now.getFullYear();
+    const targetMonth = month ?? now.getMonth(); // 0-indexed (0=Jan, 1=Feb...)
+
+    const startDate = new Date(targetYear, targetMonth, 1);
+    const endDate = new Date(targetYear, targetMonth + 1, 0); // Last day of month
+    const daysInMonth = endDate.getDate();
+
     const bookings = await this.getBookingsByHotel(hotelId);
+    const stats: OccupancyStats[] = [];
 
-    // Group by check-in date for daily occupancy
-    const statsMap = new Map<string, number>();
-    bookings.forEach(b => {
-      // Ensure b.checkIn is a Date object
-      const checkInDate = new Date(b.checkIn);
-      const dateStr = checkInDate.toISOString().split('T')[0];
-      statsMap.set(dateStr, (statsMap.get(dateStr) || 0) + (b.numberOfRooms || 1));
-    });
+    for (let day = 1; day <= daysInMonth; day++) {
+      const currentDate = new Date(targetYear, targetMonth, day);
+      currentDate.setHours(0, 0, 0, 0);
 
-    return Array.from(statsMap.entries()).map(([date, occupied]) => ({
-      date,
-      occupied,
-      totalRooms: hotel.totalRooms,
-      percentage: Math.min(100, Math.round((occupied / hotel.totalRooms) * 100))
-    })).sort((a, b) => a.date.localeCompare(b.date));
+      let occupied = 0;
+      bookings.forEach(b => {
+        const checkIn = new Date(b.checkIn);
+        const checkOut = new Date(b.checkOut);
+        checkIn.setHours(0, 0, 0, 0);
+        checkOut.setHours(0, 0, 0, 0);
+
+        // Overlap logic: Booking occupies room if it starts before/on currentDate 
+        // and ends after currentDate
+        if (checkIn <= currentDate && checkOut > currentDate && b.status !== 'cancelled') {
+          occupied += (b.numberOfRooms || 1);
+        }
+      });
+
+      stats.push({
+        date: currentDate.toISOString(),
+        occupied,
+        totalRooms: hotel.totalRooms,
+        percentage: Math.min(100, Math.round((occupied / hotel.totalRooms) * 100))
+      });
+    }
+    return stats;
   }
 
   async getRevenueStats(hotelId: number | undefined): Promise<{

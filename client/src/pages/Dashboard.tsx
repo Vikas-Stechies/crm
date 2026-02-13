@@ -189,7 +189,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" />
-            5-Day Occupancy Forecast
+            7-Day Occupancy Forecast
           </h3>
           <div className="rounded-md border">
             <Table>

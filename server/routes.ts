@@ -441,7 +441,10 @@ export async function registerRoutes(
   // Analytics Routes (Stubs)
   app.get(api.analytics.occupancy.path, requireAuth, async (req, res) => {
     const user = req.user as any;
-    const stats = await storage.getOccupancyStats(user.hotelId);
+    const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+    const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+
+    const stats = await storage.getOccupancyStats(user.hotelId, month, year);
     res.json(stats);
   });
 
