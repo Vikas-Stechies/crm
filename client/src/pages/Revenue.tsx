@@ -1,61 +1,90 @@
-import { useRevenueStats } from "@/hooks/use-analytics";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-
-const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
+import { useRevenue } from "@/hooks/use-bookings";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // Import Table components
+import { Link } from "wouter"; // Import Link
 
 export default function Revenue() {
-  const { data: stats, isLoading } = useRevenueStats();
+  const { data: stats, isLoading } = useRevenue();
 
   if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
   return (
-    <div className="p-4 md:p-8 space-y-6 pb-24 md:pb-8">
+    <div className="p-4 md:p-8 space-y-8 pb-24 md:pb-8">
       <h1 className="text-2xl md:text-3xl font-bold font-display">Revenue Analytics</h1>
 
+      {/* Existing Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Monthly Trend */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-border/50 h-[400px]">
-          <h3 className="font-bold mb-4">Monthly Revenue</h3>
-          <ResponsiveContainer width="100%" height="90%">
-            <AreaChart data={stats?.monthly}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} tick={{fontSize: 12, fill: '#6B7280'}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6B7280'}} tickFormatter={(val) => `$${val/1000}k`} />
-              <Tooltip formatter={(val: number) => [`$${val.toFixed(2)}`, "Revenue"]} />
-              <Area type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Monthly Revenue</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats?.monthly}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']} />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-        {/* Agency Breakdown */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-border/50 h-[400px]">
-          <h3 className="font-bold mb-4">Revenue by Source</h3>
-          <ResponsiveContainer width="100%" height="90%">
-            <PieChart>
-              <Pie
-                data={stats?.byAgency}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="revenue"
-              >
-                {stats?.byAgency.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(val: number) => `$${val.toFixed(2)}`} />
-              <Legend verticalAlign="bottom" height={36} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue by Agency</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats?.byAgency} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={100} />
+                <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']} />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* NEW: Agency Revenue Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Agency Performance Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Agency Name</TableHead>
+                <TableHead>Total Revenue</TableHead>
+                <TableHead>Receipt (Paid)</TableHead>
+                <TableHead>Balance (Due)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {stats?.byAgency.map((agency) => (
+                <TableRow key={agency.name}>
+                  <TableCell className="font-medium">
+                    {/* Link to Bookings page with agencyId filter */}
+                    <Link href={`/bookings?agencyId=${agency.agencyId ?? 'direct'}`}>
+                      <span className="text-primary hover:underline cursor-pointer">
+                        {agency.name}
+                      </span>
+                    </Link>
+                  </TableCell>
+                  <TableCell>${agency.revenue.toFixed(2)}</TableCell>
+                  <TableCell className="text-green-600">${agency.receipt?.toFixed(2) || '0.00'}</TableCell>
+                  <TableCell className="text-red-600">${agency.balance?.toFixed(2) || '0.00'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

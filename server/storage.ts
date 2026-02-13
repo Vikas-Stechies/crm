@@ -196,22 +196,48 @@ export class DatabaseStorage implements IStorage {
 
     const monthlyMap = new Map<string, number>();
     const yearlyMap = new Map<string, number>();
-    const agencyRevMap = new Map<string, number>();
+
+    // Create a map to store detailed stats for agencies
+    const agencyStatsMap = new Map<string, {
+      name: string;
+      agencyId: number | null;
+      revenue: number;
+      receipt: number;
+      balance: number;
+    }>();
 
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     bookings.forEach(b => {
+      // 1. Existing Monthly/Yearly Logic
       const checkInDate = new Date(b.checkIn);
       const month = months[checkInDate.getMonth()];
       const year = checkInDate.getFullYear().toString();
-      const agencyName = b.agencyId ? (agencyMap.get(b.agencyId) || "Unknown") : "Direct";
-
-      // Use totalCost for revenue as it represents the booking value
       const amount = b.totalCost || 0;
 
       monthlyMap.set(month, (monthlyMap.get(month) || 0) + amount);
       yearlyMap.set(year, (yearlyMap.get(year) || 0) + amount);
-      agencyRevMap.set(agencyName, (agencyRevMap.get(agencyName) || 0) + amount);
+
+      // 2. New Agency Logic
+      const agencyId = b.agencyId || null;
+      // Key can be the ID string or "direct" for null
+      const key = agencyId ? agencyId.toString() : "direct";
+
+      if (!agencyStatsMap.has(key)) {
+        const name = agencyId ? (agencyMap.get(agencyId) || "Unknown") : "Direct";
+        agencyStatsMap.set(key, {
+          name,
+          agencyId,
+          revenue: 0,
+          receipt: 0,
+          balance: 0
+        });
+      }
+
+      const stats = agencyStatsMap.get(key)!;
+      stats.revenue += (b.totalCost || 0);
+      stats.receipt += (b.receipt || 0);
+      stats.balance += (b.balance || 0);
     });
 
     return {
@@ -221,8 +247,15 @@ export class DatabaseStorage implements IStorage {
       yearly: Array.from(yearlyMap.entries())
         .map(([name, revenue]) => ({ name, revenue: revenue / 100 }))
         .sort((a, b) => a.name.localeCompare(b.name)),
-      byAgency: Array.from(agencyRevMap.entries())
-        .map(([name, revenue]) => ({ name, revenue: revenue / 100 }))
+
+      // Return the detailed agency stats
+      byAgency: Array.from(agencyStatsMap.values()).map(s => ({
+        name: s.name,
+        agencyId: s.agencyId,
+        revenue: s.revenue / 100,
+        receipt: s.receipt / 100,
+        balance: s.balance / 100
+      })).sort((a, b) => b.revenue - a.revenue) // Sort by revenue descending
     };
   }
 
@@ -259,19 +292,19 @@ export class DatabaseStorage implements IStorage {
         checkIn.setHours(0, 0, 0, 0);
         checkOut.setHours(0, 0, 0, 0);
 
-        // Occupied: If current date falls within the stay range (inclusive of check-in, exclusive of check-out)
+        // Occupied: Keep counting ROOMS here (Occupancy % depends on rooms)
         if (checkIn <= currentDate && checkOut > currentDate && b.status !== 'cancelled') {
           occupied += (b.numberOfRooms || 1);
         }
 
-        // Check-ins: If check-in date matches current date
+        // Check-ins: Change to count BOOKINGS (increment by 1)
         if (checkIn.getTime() === currentDate.getTime() && b.status !== 'cancelled') {
-          checkIns += (b.numberOfRooms || 1);
+          checkIns += 1; // <--- CHANGED FROM (b.numberOfRooms || 1)
         }
 
-        // Check-outs: If check-out date matches current date
+        // Check-outs: Change to count BOOKINGS (increment by 1)
         if (checkOut.getTime() === currentDate.getTime() && b.status !== 'cancelled') {
-          checkOuts += (b.numberOfRooms || 1);
+          checkOuts += 1; // <--- CHANGED FROM (b.numberOfRooms || 1)
         }
       });
 

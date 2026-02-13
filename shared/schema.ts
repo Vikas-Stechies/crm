@@ -11,6 +11,8 @@ export const hotels = pgTable("hotels", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   totalRooms: integer("total_rooms").notNull(),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -51,7 +53,10 @@ export const bookings = pgTable("bookings", {
 });
 
 // Schemas
-export const insertHotelSchema = createInsertSchema(hotels).omit({ id: true, createdAt: true });
+export const insertHotelSchema = createInsertSchema(hotels).omit({ id: true, createdAt: true }).extend({
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+});
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertAgencySchema = createInsertSchema(agencies).omit({ id: true, createdAt: true });
 export const insertBookingSchema = createInsertSchema(bookings).omit({
@@ -88,10 +93,10 @@ export type OccupancyStats = {
   percentage: number;
 };
 
-export type RevenueStats = {
-  name: string; // Month or Agency Name
-  revenue: number;
-};
+// export type RevenueStats = {
+//   name: string; // Month or Agency Name
+//   revenue: number;
+// };
 export type ForecastStats = {
   date: string;
   occupied: number;
@@ -99,4 +104,11 @@ export type ForecastStats = {
   checkIns: number;
   checkOuts: number;
   percentage: number;
+};
+export type RevenueStats = {
+  name: string;      // Month name or Agency Name
+  revenue: number;
+  receipt?: number;  // Added
+  balance?: number;  // Added
+  agencyId?: number | null; // Added for linking
 };

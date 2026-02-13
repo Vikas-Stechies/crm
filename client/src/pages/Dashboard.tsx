@@ -79,77 +79,13 @@ export default function Dashboard() {
           icon={<LogOut className="w-6 h-6" />}
           className="border-l-4 border-l-orange-500"
         />
-        <StatCard
+        {/* <StatCard
           title="Active Guests"
           value={activeBookings.length}
           icon={<Calendar className="w-6 h-6" />}
           className="border-l-4 border-l-blue-500"
-        />
+        /> */}
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
-          <h3 className="font-bold text-lg mb-4">Occupancy</h3>
-          <div className="h-[300px]">
-            <OccupancyChart />
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
-          <h3 className="font-bold text-lg mb-4">Revenue</h3>
-          <div className="h-[300px]">
-            <RevenueChart />
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" />
-            5-Day Occupancy Forecast
-          </h3>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Occupied</TableHead>
-                  <TableHead>Vacant</TableHead>
-                  <TableHead>Check-ins</TableHead>
-                  <TableHead>Check-outs</TableHead>
-                  <TableHead className="text-right">Occupancy %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {forecast?.map((day) => (
-                  <TableRow key={day.date}>
-                    <TableCell className="font-medium">
-                      {format(new Date(day.date), "EEE, MMM d")}
-                    </TableCell>
-                    <TableCell>{day.occupied}</TableCell>
-                    <TableCell>{day.vacant}</TableCell>
-                    <TableCell className="text-green-600">+{day.checkIns}</TableCell>
-                    <TableCell className="text-orange-600">-{day.checkOuts}</TableCell>
-                    <TableCell className="text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${day.percentage >= 80 ? 'bg-red-100 text-red-800' :
-                        day.percentage >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                        {day.percentage}%
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!forecast && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
-                      Loading forecast...
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Check-ins List */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
@@ -166,7 +102,7 @@ export default function Dashboard() {
                   <div className="flex justify-between items-center p-3 rounded-xl hover:bg-muted/50 transition-colors border border-border/30">
                     <div>
                       <p className="font-semibold">{booking.guestName}</p>
-                      <p className="text-xs text-muted-foreground">Room: TBD</p>
+                      {/* <p className="text-xs text-muted-foreground">Room: TBD</p> */}
                     </div>
                     <div className="text-right">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -209,6 +145,74 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
+          <h3 className="font-bold text-lg mb-4">Occupancy</h3>
+          <div className="h-[300px]">
+            <OccupancyChart />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
+          <h3 className="font-bold text-lg mb-4">Revenue</h3>
+          <div className="h-[300px]">
+            <RevenueChart />
+          </div>
+        </div> */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            5-Day Occupancy Forecast
+          </h3>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Occupied</TableHead>
+                  <TableHead>Vacant</TableHead>
+                  <TableHead>Check-ins</TableHead>
+                  <TableHead>Check-outs</TableHead>
+                  <TableHead className="text-right">Occupancy %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {forecast?.map((day) => (
+                  <TableRow key={day.date}>
+                    <TableCell className="font-medium">
+                      <Link href={`/bookings?date=${format(new Date(day.date), "yyyy-MM-dd")}`}>
+                        <span className="text-primary hover:underline cursor-pointer">
+                          {format(new Date(day.date), "EEE, MMM d")}
+                        </span>
+                      </Link>
+                    </TableCell>
+                    <TableCell>{day.occupied}</TableCell>
+                    <TableCell>{day.vacant}</TableCell>
+                    <TableCell>{day.checkIns}</TableCell>
+                    <TableCell>{day.checkOuts}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${day.percentage >= 80 ? 'bg-green-100 text-green-800' :
+                        day.percentage >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                        {day.percentage}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!forecast && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                      Loading forecast...
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+
+
     </div>
   );
 }

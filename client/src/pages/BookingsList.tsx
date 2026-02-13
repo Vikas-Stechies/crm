@@ -1,21 +1,56 @@
 import { useBookings } from "@/hooks/use-bookings";
-import { format } from "date-fns";
-import { Link } from "wouter";
-import { Plus, Search, Calendar as CalendarIcon, MessageSquare, Hotel } from "lucide-react";
+import { format, parseISO } from "date-fns"; // Added parseISO for safer date parsing
+import { Link, useLocation } from "wouter";
+import { Plus, Search, Calendar as CalendarIcon, MessageSquare, Hotel, X } from "lucide-react"; // Added X icon
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 export default function BookingsList() {
   const { data: bookings, isLoading } = useBookings();
   const [search, setSearch] = useState("");
+  const [location, setLocation] = useLocation();
+
+  // Initialize date filter from URL
+  const [dateFilter, setDateFilter] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("date");
+  });
+
+  // Sync state if URL changes (optional, but good for navigation consistency)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setDateFilter(params.get("date"));
+  }, [location]);
+
+  const clearDateFilter = () => {
+    setDateFilter(null);
+    setLocation("/bookings"); // Remove query param from URL
+  };
 
   if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
-  const filteredBookings = bookings?.filter(b => 
-    b.guestName.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const filteredBookings = bookings?.filter(b => {
+    const matchesSearch = b.guestName.toLowerCase().includes(search.toLowerCase());
+
+    let matchesDate = true;
+    if (dateFilter) {
+      // Create date objects for comparison (set time to midnight)
+      const filterDate = new Date(dateFilter + 'T00:00:00'); // Ensure time is set to start of day
+      const checkIn = new Date(b.checkIn);
+      checkIn.setHours(0, 0, 0, 0);
+
+      const checkOut = new Date(b.checkOut);
+      checkOut.setHours(0, 0, 0, 0);
+
+      // Logic: Show booking if the selected date falls within the stay [CheckIn, CheckOut)
+      // We use < CheckOut because CheckOut day usually doesn't count as "Occupied" for that night
+      matchesDate = filterDate >= checkIn && filterDate < checkOut;
+    }
+
+    return matchesSearch && matchesDate;
+  }) || [];
 
   return (
     <div className="p-4 md:p-8 space-y-6 pb-24 md:pb-8">
@@ -28,21 +63,45 @@ export default function BookingsList() {
         </Link>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="Search guest name..." 
-          className="pl-9 h-10 rounded-xl bg-white"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search guest name..."
+            className="pl-9 h-10 rounded-xl bg-white"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Date Filter Indicator */}
+        {dateFilter && (
+          <div className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-xl border border-primary/20">
+            <CalendarIcon className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {/* FIX 2: Append 'T00:00:00' here as well for correct display */}
+              Occupancy: {format(new Date(dateFilter + 'T00:00:00'), "MMM d, yyyy")}
+            </span>
+            <button
+              onClick={clearDateFilter}
+              className="ml-2 hover:bg-primary/20 rounded-full p-1 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
         {filteredBookings.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-border">
             <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">No bookings found</p>
+            <p className="text-muted-foreground">
+              {dateFilter ? "No occupied rooms found for this date" : "No bookings found"}
+            </p>
+            {dateFilter && (
+              <Button onClick={clearDateFilter}>Clear date filter</Button>
+            )}
           </div>
         ) : (
           filteredBookings.map(booking => (
@@ -55,9 +114,13 @@ export default function BookingsList() {
                   </div>
                   <Badge status={booking.status} />
                 </div>
-                
+
+                {/* Highlight the relevant dates if filtering */}
                 <div className="grid grid-cols-2 gap-4 mt-3">
-                  <div className="bg-muted/30 p-2 rounded-lg">
+                  <div className={cn(
+                    "bg-muted/30 p-2 rounded-lg",
+                    dateFilter && new Date(booking.checkIn).toDateString() === new Date(dateFilter).toDateString() && "bg-green-100 ring-1 ring-green-200"
+                  )}>
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Check In</p>
                     <p className="text-sm font-medium">{format(new Date(booking.checkIn), "MMM d, yyyy")}</p>
                   </div>
@@ -105,7 +168,7 @@ function Badge({ status }: { status: string }) {
     checked_out: "bg-gray-100 text-gray-800",
     cancelled: "bg-red-100 text-red-800",
   };
-  
+
   return (
     <span className={cn(
       "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize",
