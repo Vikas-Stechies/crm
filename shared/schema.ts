@@ -52,7 +52,15 @@ export const bookings = pgTable("bookings", {
   status: text("status", { enum: bookingStatuses }).notNull().default("confirmed"),
   createdAt: timestamp("created_at").defaultNow(),
 });
-
+export const bookingAudit = pgTable("booking_audit", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  action: text("action"),
+  oldStatus: text("old_status"),
+  newStatus: text("new_status"),
+  changedBy: text("changed_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 // Schemas
 export const insertHotelSchema = createInsertSchema(hotels).omit({ id: true, createdAt: true }).extend({
   startDate: z.coerce.date().optional().nullable(),
