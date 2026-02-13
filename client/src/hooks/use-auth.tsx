@@ -1,5 +1,4 @@
-import { createContext, ReactNode, useContext } from "wouter/use-location"; // Wait, using wouter for context is wrong
-import React from "react";
+import React, { ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type User } from "@shared/routes";
 import { useLocation } from "wouter";
@@ -25,7 +24,7 @@ export function useAuth() {
 function useLoginMutation() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  
+
   return useMutation({
     mutationFn: async (credentials: typeof api.auth.login.input._type) => {
       const res = await fetch(api.auth.login.path, {
@@ -34,12 +33,23 @@ function useLoginMutation() {
         body: JSON.stringify(credentials),
         credentials: "include",
       });
-      
+
       if (!res.ok) {
-        throw new Error("Invalid credentials");
+        // Extract the custom backend message (e.g., the expired subscription message)
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.message || "Invalid credentials");
       }
-      
-      return api.auth.login.responses[200].parse(await res.json());
+
+      const rawData = await res.json();
+      // Parse the user using our schema
+      const user = api.auth.login.responses[200].parse(rawData);
+
+      // Re-attach the warning so it isn't stripped out by strict Zod parsing
+      if (rawData.subscriptionWarning) {
+        (user as any).subscriptionWarning = rawData.subscriptionWarning;
+      }
+
+      return user;
     },
     onSuccess: (user) => {
       queryClient.setQueryData([api.auth.me.path], user);
@@ -66,7 +76,7 @@ function useLogoutMutation() {
     },
     onSuccess: () => {
       queryClient.setQueryData([api.auth.me.path], null);
-      setLocation("/auth");
+      setLocation("/auth"); // Redirect to login page
     },
   });
 }

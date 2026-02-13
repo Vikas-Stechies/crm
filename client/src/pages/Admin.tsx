@@ -1,21 +1,22 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useHotels, useCreateHotel, useDeleteHotel } from "@/hooks/use-hotels";
+import { useHotels, useCreateHotel, useUpdateHotel, useDeleteHotel } from "@/hooks/use-hotels";
 import { useUsers, useCreateUser, useDeleteUser } from "@/hooks/use-users";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Trash2, Building, User as UserIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Trash2, Building, User as UserIcon, Edit } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertHotelSchema, insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { z } from "zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function Admin() {
   const { user } = useAuth();
-  
+
   if (user?.role !== 'admin') {
     return <div className="p-8 text-center">Access Denied</div>;
   }
@@ -23,7 +24,7 @@ export default function Admin() {
   return (
     <div className="p-4 md:p-8 pb-24 md:pb-8">
       <h1 className="text-3xl font-bold font-display mb-6">System Admin</h1>
-      
+
       <Tabs defaultValue="hotels" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-8">
           <TabsTrigger value="hotels">Hotels</TabsTrigger>
@@ -43,15 +44,57 @@ export default function Admin() {
 function HotelsManager() {
   const { data: hotels, isLoading } = useHotels();
   const createMutation = useCreateHotel();
+  const updateMutation = useUpdateHotel();
   const deleteMutation = useDeleteHotel();
-  
+
+  const [editingHotel, setEditingHotel] = useState<any>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
   const form = useForm({
     resolver: zodResolver(insertHotelSchema),
-    defaultValues: { name: "", totalRooms: 10 }
+    defaultValues: { name: "", totalRooms: 10, startDate: new Date(), endDate: new Date() }
   });
 
+  useEffect(() => {
+    if (editingHotel) {
+      form.reset({
+        name: editingHotel.name,
+        totalRooms: editingHotel.totalRooms,
+        startDate: editingHotel.startDate,
+        endDate: editingHotel.endDate,
+      });
+    } else {
+      form.reset({ name: "", totalRooms: 10, startDate: new Date(), endDate: new Date() });
+    }
+  }, [editingHotel, form]);
+
   const onSubmit = (data: any) => {
-    createMutation.mutate(data, { onSuccess: () => form.reset() });
+    // Convert Date objects to ISO strings for proper serialization
+    const submitData = {
+      ...data,
+      startDate: data.startDate instanceof Date ? data.startDate.toISOString() : data.startDate,
+      endDate: data.endDate instanceof Date ? data.endDate.toISOString() : data.endDate,
+    };
+
+    if (editingHotel) {
+      updateMutation.mutate(
+        { id: editingHotel.id, ...submitData },
+        {
+          onSuccess: () => {
+            setIsOpen(false);
+            setEditingHotel(null);
+            form.reset();
+          }
+        }
+      );
+    } else {
+      createMutation.mutate(submitData, {
+        onSuccess: () => {
+          setIsOpen(false);
+          form.reset();
+        }
+      });
+    }
   };
 
   if (isLoading) return <div>Loading...</div>;
@@ -60,12 +103,14 @@ function HotelsManager() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Properties</h2>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Hotel</Button>
-          </DialogTrigger>
+        <Button onClick={() => { setEditingHotel(null); setIsOpen(true); }}>
+          <Plus className="mr-2 h-4 w-4" /> Add Hotel
+        </Button>
+        <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setEditingHotel(null); }}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Add New Hotel</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editingHotel ? "Edit Hotel" : "Add New Hotel"}</DialogTitle>
+            </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -90,7 +135,53 @@ function HotelsManager() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" disabled={createMutation.isPending} className="w-full">Create</Button>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => {
+                      const dateValue = field.value instanceof Date ? field.value :
+                        field.value ? new Date(field.value) : null;
+                      return (
+                        <FormItem>
+                          <FormLabel>Start Date</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              value={dateValue ? dateValue.toISOString().split('T')[0] : ''}
+                              onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => {
+                      const dateValue = field.value instanceof Date ? field.value :
+                        field.value ? new Date(field.value) : null;
+                      return (
+                        <FormItem>
+                          <FormLabel>End Date</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              value={dateValue ? dateValue.toISOString().split('T')[0] : ''}
+                              onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+                </div>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="w-full">
+                  {editingHotel ? "Update" : "Create"}
+                </Button>
               </form>
             </Form>
           </DialogContent>
@@ -107,18 +198,32 @@ function HotelsManager() {
               <div>
                 <p className="font-bold">{hotel.name}</p>
                 <p className="text-sm text-muted-foreground">{hotel.totalRooms} Rooms</p>
+                {hotel.endDate && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Expires: {new Date(hotel.endDate).toLocaleDateString()}
+                  </p>
+                )}
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                if (confirm('Delete this hotel?')) deleteMutation.mutate(hotel.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { setEditingHotel(hotel); setIsOpen(true); }}
+              >
+                <Edit className="h-4 w-4 text-blue-500" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  if (confirm('Delete this hotel?')) deleteMutation.mutate(hotel.id);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         ))}
       </div>
@@ -131,26 +236,81 @@ function UsersManager() {
   const { data: hotels } = useHotels();
   const createMutation = useCreateUser();
   const deleteMutation = useDeleteUser();
-  
+  const queryClient = useQueryClient();
+
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch(`/api/users/${editingUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
+  });
+
   const form = useForm({
     resolver: zodResolver(insertUserSchema),
     defaultValues: { name: "", email: "", password: "", role: "manager", hotelId: 0 }
   });
 
+  useEffect(() => {
+    if (editingUser) {
+      form.reset({
+        name: editingUser.name,
+        email: editingUser.email,
+        password: "********", // Dummy password to bypass validation on Edit UI 
+        role: editingUser.role,
+        hotelId: editingUser.hotelId || 0
+      });
+    } else {
+      form.reset({ name: "", email: "", password: "", role: "manager", hotelId: 0 });
+    }
+  }, [editingUser, form]);
+
   const onSubmit = (data: any) => {
-    createMutation.mutate({ ...data, hotelId: data.hotelId === 0 ? null : data.hotelId }, { onSuccess: () => form.reset() });
+    const payload = { ...data, hotelId: data.hotelId === 0 ? null : data.hotelId };
+
+    // If we're editing and password hasn't changed, don't pass it back
+    if (editingUser && data.password === "********") {
+      delete payload.password;
+    }
+
+    if (editingUser) {
+      updateMutation.mutate(payload, {
+        onSuccess: () => {
+          setIsOpen(false);
+          setEditingUser(null);
+          form.reset();
+        }
+      });
+    } else {
+      createMutation.mutate(payload, {
+        onSuccess: () => {
+          setIsOpen(false);
+          form.reset();
+        }
+      });
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Team Members</h2>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add User</Button>
-          </DialogTrigger>
+        <Button onClick={() => { setEditingUser(null); setIsOpen(true); }}>
+          <Plus className="mr-2 h-4 w-4" /> Add User
+        </Button>
+        <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setEditingUser(null); }}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Add New User</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
+            </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -181,7 +341,9 @@ function UsersManager() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Password</FormLabel>
-                      <FormControl><Input type="password" {...field} /></FormControl>
+                      <FormControl>
+                        <Input type="password" placeholder={editingUser ? "Leave '********' to keep current" : ""} {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -209,9 +371,10 @@ function UsersManager() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Assign Hotel</FormLabel>
-                      <Select onValueChange={(val) => field.onChange(parseInt(val))} defaultValue={field.value.toString()}>
+                      <Select onValueChange={(val) => field.onChange(parseInt(val))} defaultValue={field.value?.toString() || "0"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select hotel" /></SelectTrigger></FormControl>
                         <SelectContent>
+                          <SelectItem value="0">Unassigned</SelectItem>
                           {hotels?.map(h => (
                             <SelectItem key={h.id} value={h.id.toString()}>{h.name}</SelectItem>
                           ))}
@@ -221,7 +384,9 @@ function UsersManager() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" disabled={createMutation.isPending} className="w-full">Create User</Button>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="w-full">
+                  {editingUser ? "Update User" : "Create User"}
+                </Button>
               </form>
             </Form>
           </DialogContent>
@@ -240,16 +405,25 @@ function UsersManager() {
                 <p className="text-sm text-muted-foreground capitalize">{user.role} • {hotels?.find(h => h.id === user.hotelId)?.name || 'Unassigned'}</p>
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                if (confirm('Delete this user?')) deleteMutation.mutate(user.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { setEditingUser(user); setIsOpen(true); }}
+              >
+                <Edit className="h-4 w-4 text-blue-500" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  if (confirm('Delete this user?')) deleteMutation.mutate(user.id);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         ))}
       </div>

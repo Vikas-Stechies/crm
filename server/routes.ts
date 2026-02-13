@@ -64,6 +64,34 @@ export async function registerRoutes(
         const isValid = await comparePasswords(password, user.password);
         if (!isValid) return done(null, false, { message: "Invalid password" });
 
+        // NEW LOGIC: Check subscription dates for non-admin users
+        if (user.role !== 'admin' && user.hotelId) {
+          const hotel = await storage.getHotel(user.hotelId);
+          if (hotel && hotel.endDate) {
+            const today = new Date();
+            const endDate = new Date(hotel.endDate);
+
+            // Normalize dates to midnight to ensure correct comparison
+            today.setHours(0, 0, 0, 0);
+            const compareEndDate = new Date(endDate);
+            compareEndDate.setHours(0, 0, 0, 0);
+
+            // 1. Block login if subscription is expired
+            if (today > compareEndDate) {
+              return done(null, false, { message: "Your subscription has expired please renew" });
+            }
+
+            // 2. Add a warning if 10 days or fewer remain
+            const diffTime = compareEndDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays <= 10 && diffDays >= 0) {
+              // Append property so client can show warning toast after successful login
+              (user as any).subscriptionWarning = "Your subscription is about to expire please renew";
+            }
+          }
+        }
+
         return done(null, user);
       } catch (err) {
         return done(err);
@@ -82,8 +110,18 @@ export async function registerRoutes(
   });
 
   // Auth Routes
-  app.post(api.auth.login.path, passport.authenticate("local"), (req, res) => {
-    res.json(req.user);
+  app.post(api.auth.login.path, (req, res, next) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
+      if (err) return next(err);
+      if (!user) {
+        // Return 401 with the custom message to display expired popup
+        return res.status(401).json({ message: info?.message || "Authentication failed" });
+      }
+      req.logIn(user, (err) => {
+        if (err) return next(err);
+        return res.json(user);
+      });
+    })(req, res, next);
   });
 
   app.post(api.auth.logout.path, (req, res, next) => {
@@ -116,13 +154,46 @@ export async function registerRoutes(
   });
 
   app.post(api.hotels.create.path, requireAdmin, async (req, res) => {
-    const hotel = await storage.createHotel(req.body);
-    res.status(201).json(hotel);
+    try {
+      const payload = { ...req.body };
+
+      // Convert JSON strings back to Javascript Date objects for Drizzle
+      if (payload.startDate) payload.startDate = new Date(payload.startDate);
+      else payload.startDate = null;
+
+      if (payload.endDate) payload.endDate = new Date(payload.endDate);
+      else payload.endDate = null;
+
+      const hotel = await storage.createHotel(payload);
+      res.status(201).json(hotel);
+    } catch (err) {
+      console.error("Failed to create hotel:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.patch(api.hotels.update.path, requireAdmin, async (req, res) => {
-    const hotel = await storage.updateHotel(Number(req.params.id), req.body);
-    res.json(hotel);
+    try {
+      const payload = { ...req.body };
+
+      // Remove id and createdAt to prevent accidental updates
+      delete payload.id;
+      delete payload.createdAt;
+
+      // Convert JSON strings back to Javascript Date objects for Drizzle
+      if (payload.startDate !== undefined) {
+        payload.startDate = payload.startDate ? new Date(payload.startDate) : null;
+      }
+      if (payload.endDate !== undefined) {
+        payload.endDate = payload.endDate ? new Date(payload.endDate) : null;
+      }
+
+      const hotel = await storage.updateHotel(Number(req.params.id), payload);
+      res.json(hotel);
+    } catch (err) {
+      console.error("Failed to update hotel:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.delete(api.hotels.delete.path, requireAdmin, async (req, res) => {

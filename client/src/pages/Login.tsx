@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast"; // <-- Added for popup notifications
 
 const loginSchema = z.object({
   username: z.string().email("Please enter a valid email"),
@@ -17,6 +18,7 @@ const loginSchema = z.object({
 export default function Login() {
   const { loginMutation, user } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -34,7 +36,27 @@ export default function Login() {
   });
 
   const onSubmit = (data: z.infer<typeof loginSchema>) => {
-    loginMutation.mutate(data);
+    loginMutation.mutate(data, {
+      onSuccess: (userData: any) => {
+        // Display the 10-day expiration warning as a popup on successful login
+        if (userData?.subscriptionWarning) {
+          toast({
+            title: "Subscription Notice",
+            description: userData.subscriptionWarning,
+            variant: "destructive",
+            duration: 6000, // Keep visible a bit longer
+          });
+        }
+      },
+      onError: (error) => {
+        // Display the blocked/expired expiration as a popup
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    });
   };
 
   return (
@@ -67,7 +89,7 @@ export default function Login() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="password"
@@ -82,8 +104,8 @@ export default function Login() {
               )}
             />
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={loginMutation.isPending}
               className="w-full h-12 text-base font-semibold rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all"
             >
@@ -91,7 +113,7 @@ export default function Login() {
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               ) : "Sign In"}
             </Button>
-            
+
             {loginMutation.error && (
               <p className="text-sm text-destructive text-center font-medium bg-destructive/10 p-3 rounded-lg">
                 {loginMutation.error.message}
