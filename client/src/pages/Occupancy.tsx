@@ -1,15 +1,22 @@
 import { useOccupancyStats } from "@/hooks/use-analytics";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import { format, parseISO } from "date-fns";
-import { Activity, TrendingUp, TrendingDown, CalendarDays } from "lucide-react";
+import { Progress } from "@/components/ui/progress"; // Ensure this shadcn component exists
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Activity, TrendingUp, TrendingDown, CalendarDays } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 export default function Occupancy() {
   const { data: stats, isLoading } = useOccupancyStats();
 
-  if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  if (isLoading) {
+    return (
+      <div className="p-8 flex justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   // Calculate high-level metrics
   const validStats = stats || [];
@@ -19,6 +26,11 @@ export default function Occupancy() {
 
   const maxOccupancy = validStats.length > 0 ? Math.max(...validStats.map(s => s.percentage)) : 0;
   const minOccupancy = validStats.length > 0 ? Math.min(...validStats.map(s => s.percentage)) : 0;
+
+  const totalBooked = stats?.reduce((acc, curr) => acc + curr.occupied, 0) || 0;
+  const totalRoomsPossible = stats?.reduce((acc, curr) => acc + (curr.totalRooms || 14), 0) || 0;
+  const totalVacant = totalRoomsPossible - totalBooked;
+  //const avgOccupancy = stats?.length ? Math.round((totalBooked / totalRoomsPossible) * 100) : 0;
 
   return (
     <div className="p-4 md:p-8 space-y-8 pb-24 md:pb-8">
@@ -65,45 +77,7 @@ export default function Occupancy() {
         </Card>
       </div>
 
-      {/* Main Chart */}
-      <Card className="border-border/50 shadow-sm pt-6">
-        <CardContent className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={validStats} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(str) => format(parseISO(str), "MMM d")}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-                dy={10}
-              />
-              <YAxis
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-                dx={-10}
-                domain={[0, 100]}
-                tickFormatter={(val) => `${val}%`}
-              />
-              <Tooltip
-                cursor={{ fill: '#F3F4F6' }}
-                contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                labelFormatter={(label) => format(parseISO(label as string), "EEEE, MMMM d, yyyy")}
-                formatter={(value: number) => [`${value}%`, 'Occupied']}
-              />
-              <ReferenceLine y={avgOccupancy} stroke="hsl(var(--destructive))" strokeDasharray="3 3" opacity={0.5} />
-              <Bar
-                dataKey="percentage"
-                fill="hsl(var(--primary))"
-                radius={[4, 4, 0, 0]}
-                barSize={32}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+
 
       {/* Detailed Data Table */}
       <Card className="border-border/50 shadow-sm">
@@ -116,61 +90,63 @@ export default function Occupancy() {
         <CardContent>
           <div className="rounded-md border">
             <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-center">Rooms Occupied</TableHead>
-                  <TableHead className="text-right">Occupancy %</TableHead>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="w-[100px]">Month</TableHead>
+                  <TableHead className="w-[80px]">Date</TableHead>
+                  <TableHead>Booked</TableHead>
+                  <TableHead>Available</TableHead>
+                  <TableHead className="w-[40%]">Bar Chart</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {validStats.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                      No occupancy data available to display.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  validStats.map((stat, i) => (
-                    <TableRow key={i}>
+                {stats?.map((day, index) => {
+                  const dateObj = parseISO(day.date);
+                  const totalRooms = day.totalRooms; // Fallback to 14 from image if not in data
+                  const available = totalRooms - day.occupied;
+
+                  return (
+                    <TableRow key={index} className="hover:bg-muted/30">
                       <TableCell className="font-medium">
-                        {format(parseISO(stat.date), "EEEE, MMM d, yyyy")}
+                        <span className="bg-gray-500 text-white px-2 py-1 rounded text-[10px] uppercase">
+                          {format(dateObj, "MMMM")}
+                        </span>
                       </TableCell>
-                      <TableCell className="text-center">
-                        {stat.occupied}
+                      <TableCell>
+                        <span className="bg-cyan-500 text-white px-2 py-1 rounded font-bold text-xs">
+                          {format(dateObj, "dd")}
+                        </span>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <span className={cn(
-                            "font-semibold",
-                            stat.percentage >= 80 ? "text-green-600" :
-                              stat.percentage >= 50 ? "text-orange-500" :
-                                "text-destructive"
-                          )}>
-                            {stat.percentage}%
-                          </span>
-                          <div className="w-16 bg-secondary h-1.5 rounded-full overflow-hidden hidden sm:block">
-                            <div
-                              className={cn(
-                                "h-full rounded-full",
-                                stat.percentage >= 80 ? "bg-green-500" :
-                                  stat.percentage >= 50 ? "bg-orange-500" :
-                                    "bg-destructive"
-                              )}
-                              style={{ width: `${stat.percentage}%` }}
-                            />
+                      <TableCell>{day.occupied}</TableCell>
+                      <TableCell>{available}</TableCell>
+                      <TableCell>
+                        <div className="relative h-8 w-full bg-secondary/20 rounded-sm overflow-hidden flex items-center">
+                          <div
+                            className="h-full flex items-center justify-center text-[10px] font-bold transition-all"
+                            style={{
+                              width: `${day.percentage}%`,
+                              backgroundColor: day.percentage > 80 ? '#84cc16' : day.percentage > 50 ? '#22d3ee' : '#f87171'
+                            }}
+                          >
+                            {day.occupied > 0 && <span>{day.occupied}</span>}
                           </div>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  );
+                })}
               </TableBody>
             </Table>
+
+            {/* Footer Summary as seen in image */}
+            <div className="p-4 bg-muted/20 border-t text-center text-sm font-medium">
+              Total Rooms booked: <span className="text-primary">{totalBooked}</span> |
+              Vacant: <span className="text-primary">{totalVacant}</span> |
+              Occupancy: <span className="text-red-500">{avgOccupancy}%</span>
+            </div>
           </div>
         </CardContent>
       </Card>
-
     </div>
   );
 }

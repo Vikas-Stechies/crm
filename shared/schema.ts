@@ -98,7 +98,8 @@ export type InsertBooking = z.infer<typeof insertBookingSchema>;
 // Analytics Types
 export type OccupancyStats = {
   date: string;
-  occupied: number;
+  occupied: number;    // "Booked" in the image
+  totalRooms: number;  // Needed to calculate "Available"
   percentage: number;
 };
 

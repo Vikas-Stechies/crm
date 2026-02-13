@@ -179,6 +179,7 @@ export class DatabaseStorage implements IStorage {
     return Array.from(statsMap.entries()).map(([date, occupied]) => ({
       date,
       occupied,
+      totalRooms: hotel.totalRooms,
       percentage: Math.min(100, Math.round((occupied / hotel.totalRooms) * 100))
     })).sort((a, b) => a.date.localeCompare(b.date));
   }

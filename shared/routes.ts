@@ -203,6 +203,7 @@ export const api = {
         200: z.array(z.object({
           date: z.string(),
           occupied: z.number(),
+          totalRooms: z.number(),
           percentage: z.number(),
         })),
       },
