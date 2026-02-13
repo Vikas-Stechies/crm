@@ -11,8 +11,9 @@ export const hotels = pgTable("hotels", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   totalRooms: integer("total_rooms").notNull(),
-  startDate: timestamp("start_date"),
-  endDate: timestamp("end_date"),
+  // Add mode: "date" to instruct Drizzle to accept and return JS Date objects
+  startDate: timestamp("start_date", { mode: "date" }),
+  endDate: timestamp("end_date", { mode: "date" }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -93,10 +94,6 @@ export type OccupancyStats = {
   percentage: number;
 };
 
-// export type RevenueStats = {
-//   name: string; // Month or Agency Name
-//   revenue: number;
-// };
 export type ForecastStats = {
   date: string;
   occupied: number;

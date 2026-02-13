@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useHotels, useCreateHotel, useUpdateHotel, useDeleteHotel } from "@/hooks/use-hotels";
+import { useHotels, useCreateHotel, useDeleteHotel } from "@/hooks/use-hotels";
 import { useUsers, useCreateUser, useDeleteUser } from "@/hooks/use-users";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -44,11 +44,24 @@ export default function Admin() {
 function HotelsManager() {
   const { data: hotels, isLoading } = useHotels();
   const createMutation = useCreateHotel();
-  const updateMutation = useUpdateHotel();
   const deleteMutation = useDeleteHotel();
+  const queryClient = useQueryClient();
 
   const [editingHotel, setEditingHotel] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch(`/api/hotels/${editingHotel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }),
+  });
 
   const form = useForm({
     resolver: zodResolver(insertHotelSchema),
@@ -60,35 +73,26 @@ function HotelsManager() {
       form.reset({
         name: editingHotel.name,
         totalRooms: editingHotel.totalRooms,
-        startDate: editingHotel.startDate,
-        endDate: editingHotel.endDate,
+        // Ensure values are formatted as proper Date objects for React Hook Form
+        startDate: editingHotel.startDate ? new Date(editingHotel.startDate) : undefined,
+        endDate: editingHotel.endDate ? new Date(editingHotel.endDate) : undefined,
       });
     } else {
-      form.reset({ name: "", totalRooms: 10, startDate: new Date(), endDate: new Date() });
+      form.reset({ name: "", totalRooms: 10, startDate: undefined, endDate: undefined });
     }
   }, [editingHotel, form]);
 
   const onSubmit = (data: any) => {
-    // Convert Date objects to ISO strings for proper serialization
-    const submitData = {
-      ...data,
-      startDate: data.startDate instanceof Date ? data.startDate.toISOString() : data.startDate,
-      endDate: data.endDate instanceof Date ? data.endDate.toISOString() : data.endDate,
-    };
-
     if (editingHotel) {
-      updateMutation.mutate(
-        { id: editingHotel.id, ...submitData },
-        {
-          onSuccess: () => {
-            setIsOpen(false);
-            setEditingHotel(null);
-            form.reset();
-          }
+      updateMutation.mutate(data, {
+        onSuccess: () => {
+          setIsOpen(false);
+          setEditingHotel(null);
+          form.reset();
         }
-      );
+      });
     } else {
-      createMutation.mutate(submitData, {
+      createMutation.mutate(data, {
         onSuccess: () => {
           setIsOpen(false);
           form.reset();
@@ -139,44 +143,44 @@ function HotelsManager() {
                   <FormField
                     control={form.control}
                     name="startDate"
-                    render={({ field }) => {
-                      const dateValue = field.value instanceof Date ? field.value :
-                        field.value ? new Date(field.value) : null;
-                      return (
-                        <FormItem>
-                          <FormLabel>Start Date</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="date"
-                              value={dateValue ? dateValue.toISOString().split('T')[0] : ''}
-                              onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Date</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            name={field.name}
+                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val ? new Date(val) : null);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                   <FormField
                     control={form.control}
                     name="endDate"
-                    render={({ field }) => {
-                      const dateValue = field.value instanceof Date ? field.value :
-                        field.value ? new Date(field.value) : null;
-                      return (
-                        <FormItem>
-                          <FormLabel>End Date</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="date"
-                              value={dateValue ? dateValue.toISOString().split('T')[0] : ''}
-                              onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End Date</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            name={field.name}
+                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val ? new Date(val) : null);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
                 <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="w-full">
