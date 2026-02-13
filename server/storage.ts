@@ -272,8 +272,8 @@ export class DatabaseStorage implements IStorage {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Loop for 5 days (Today + 4 days)
-    for (let i = 0; i < 5; i++) {
+    // Loop for 5 days (Today + 7 days)
+    for (let i = 0; i < 7; i++) {
       const currentDate = new Date(today);
       currentDate.setDate(today.getDate() + i);
 

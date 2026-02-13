@@ -44,7 +44,7 @@ export default function Login() {
             title: "Subscription Notice",
             description: userData.subscriptionWarning,
             variant: "destructive",
-            duration: 6000, // Keep visible a bit longer
+            duration: 10000, // Keep visible a bit longer
           });
         }
       },
