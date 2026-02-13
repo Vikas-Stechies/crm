@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hotelixo</string>
+    <string name="title_activity_main">Hotelixo</string>
+    <string name="package_name">com.hotelixo.app</string>
+    <string name="custom_url_scheme">com.hotelixo.app</string>
+</resources>
