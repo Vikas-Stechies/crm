@@ -10,9 +10,9 @@ const httpServer = createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'http://192.168.1.5:3000', // Your mobile dev IP
-  'capacitor://localhost',   // iOS Capacitor origin
-  'http://localhost'          // Android Capacitor origin
+  'capacitor://localhost',
+  'http://localhost',
+  'https://crm-2k6y.onrender.com' // ADD YOUR PRODUCTION URL HERE
 ];
 declare module "http" {
   interface IncomingMessage {
@@ -32,7 +32,7 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
-
+app.set("trust proxy", 1);
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
