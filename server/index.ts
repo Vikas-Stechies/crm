@@ -12,7 +12,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'capacitor://localhost',
   'http://localhost',
-  'https://crm-2k6y.onrender.com' // ADD YOUR PRODUCTION URL HERE
+  'https://crm-2k6y.onrender.com', // ADD YOUR PRODUCTION URL HERE
+  'http://crm.outhillsmanali.com'
 ];
 declare module "http" {
   interface IncomingMessage {
