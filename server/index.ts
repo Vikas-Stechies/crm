@@ -3,16 +3,26 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import cors from 'cors';
 
 const app = express();
 const httpServer = createServer(app);
-
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://192.168.1.5:3000', // Your mobile dev IP
+  'capacitor://localhost',   // iOS Capacitor origin
+  'http://localhost'          // Android Capacitor origin
+];
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
   }
 }
-
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -90,7 +100,13 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
+
   const port = parseInt(process.env.PORT || "5000", 10);
+  // app.listen(port, "0.0.0.0", () => { // Ensure "0.0.0.0" is present
+  //   console.log(`Server running at http://0.0.0.0:${port}`);
+  // });
+
+  //const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
       port,

@@ -21,13 +21,24 @@ export function useAuth() {
   return context;
 }
 
+// Ensure this matches the logic in your queryClient.ts
+const isNative = window.hasOwnProperty('Capacitor');
+const API_BASE_URL = isNative ? "http://172.20.10.2:3000" : "";
+
+const getAbsoluteUrl = (path: string) => {
+  if (path.startsWith('http')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${cleanPath}`;
+};
+
 function useLoginMutation() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
   return useMutation({
     mutationFn: async (credentials: typeof api.auth.login.input._type) => {
-      const res = await fetch(api.auth.login.path, {
+      // Use helper for absolute URL
+      const res = await fetch(getAbsoluteUrl(api.auth.login.path), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
@@ -35,16 +46,13 @@ function useLoginMutation() {
       });
 
       if (!res.ok) {
-        // Extract the custom backend message (e.g., the expired subscription message)
         const errorData = await res.json().catch(() => null);
         throw new Error(errorData?.message || "Invalid credentials");
       }
 
       const rawData = await res.json();
-      // Parse the user using our schema
       const user = api.auth.login.responses[200].parse(rawData);
 
-      // Re-attach the warning so it isn't stripped out by strict Zod parsing
       if (rawData.subscriptionWarning) {
         (user as any).subscriptionWarning = rawData.subscriptionWarning;
       }
@@ -68,7 +76,8 @@ function useLogoutMutation() {
 
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch(api.auth.logout.path, {
+      // Updated to use absolute URL
+      const res = await fetch(getAbsoluteUrl(api.auth.logout.path), {
         method: "POST",
         credentials: "include",
       });
@@ -76,7 +85,7 @@ function useLogoutMutation() {
     },
     onSuccess: () => {
       queryClient.setQueryData([api.auth.me.path], null);
-      setLocation("/auth"); // Redirect to login page
+      setLocation("/auth");
     },
   });
 }
@@ -85,7 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: user, isLoading, error } = useQuery({
     queryKey: [api.auth.me.path],
     queryFn: async () => {
-      const res = await fetch(api.auth.me.path, { credentials: "include" });
+      // Updated to use absolute URL for session checking
+      const res = await fetch(getAbsoluteUrl(api.auth.me.path), {
+        credentials: "include"
+      });
+
       if (res.status === 401) return null;
       if (!res.ok) throw new Error("Failed to fetch user");
       return api.auth.me.responses[200].parse(await res.json());

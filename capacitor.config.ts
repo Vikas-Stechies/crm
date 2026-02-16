@@ -5,6 +5,22 @@ const config: CapacitorConfig = {
   appId: 'com.yourcompany.app',
   appName: 'YourAppName',
   webDir: 'dist/public', // Ensure this says 'dist'
+  server: {
+    // This allows the app to request http endpoints even if the app is served via https
+    androidScheme: 'http',
+    cleartext: true,
+  },
+  android: {
+    allowMixedContent: true,
+  },
+  plugins: {
+    CapacitorCookies: {
+      enabled: true,
+    },
+    CapacitorHttp: {
+      enabled: true,
+    },
+  },
 };
 
 export default config;
