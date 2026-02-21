@@ -2,6 +2,7 @@ import React, { ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type User } from "@shared/routes";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient"; // Import the helper
 
 type AuthContextType = {
   user: User | null;
@@ -21,34 +22,14 @@ export function useAuth() {
   return context;
 }
 
-// Ensure this matches the logic in your queryClient.ts
-const isNative = window.hasOwnProperty('Capacitor');
-const API_BASE_URL = isNative ? "https://crm.outhillsmanali.com" : "";
-
-const getAbsoluteUrl = (path: string) => {
-  if (path.startsWith('http')) return path;
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${cleanPath}`;
-};
-
 function useLoginMutation() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
   return useMutation({
     mutationFn: async (credentials: typeof api.auth.login.input._type) => {
-      // Use helper for absolute URL
-      const res = await fetch(getAbsoluteUrl(api.auth.login.path), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.message || "Invalid credentials");
-      }
+      // apiRequest handles the environment-specific URL logic and credentials
+      const res = await apiRequest("POST", api.auth.login.path, credentials);
 
       const rawData = await res.json();
       const user = api.auth.login.responses[200].parse(rawData);
@@ -76,12 +57,8 @@ function useLogoutMutation() {
 
   return useMutation({
     mutationFn: async () => {
-      // Updated to use absolute URL
-      const res = await fetch(getAbsoluteUrl(api.auth.logout.path), {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Logout failed");
+      // Uses apiRequest for consistent cross-platform logout
+      await apiRequest("POST", api.auth.logout.path);
     },
     onSuccess: () => {
       queryClient.setQueryData([api.auth.me.path], null);
@@ -94,14 +71,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: user, isLoading, error } = useQuery({
     queryKey: [api.auth.me.path],
     queryFn: async () => {
-      // Updated to use absolute URL for session checking
-      const res = await fetch(getAbsoluteUrl(api.auth.me.path), {
-        credentials: "include"
-      });
-
-      if (res.status === 401) return null;
-      if (!res.ok) throw new Error("Failed to fetch user");
-      return api.auth.me.responses[200].parse(await res.json());
+      try {
+        // apiRequest ensures the correct absolute URL for session checking
+        const res = await apiRequest("GET", api.auth.me.path);
+        return api.auth.me.responses[200].parse(await res.json());
+      } catch (e: any) {
+        // Handle 401 specifically for initial session check
+        if (e.message?.includes("401")) {
+          return null;
+        }
+        throw e;
+      }
     },
   });
 
