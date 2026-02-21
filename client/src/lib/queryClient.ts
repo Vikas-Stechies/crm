@@ -7,7 +7,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 const isNative = window.hasOwnProperty('Capacitor');
-const API_BASE_URL = isNative ? "http://172.20.10.2:3000" : "";
+const API_BASE_URL = isNative ? "https://crm.outhillsmanali.com/" : "";
 const getAbsoluteUrl = (path: string) => {
   if (path.startsWith('http')) return path;
   // Ensure we don't end up with double slashes like //api

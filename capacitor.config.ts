@@ -2,12 +2,12 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.yourcompany.app',
+  appId: 'com.outhillsmanali.app',
   appName: 'YourAppName',
   webDir: 'dist', // Ensure this says 'dist'
   server: {
     // This allows the app to request http endpoints even if the app is served via https
-    androidScheme: 'http',
+    androidScheme: 'https',
     cleartext: true,
   },
   android: {
