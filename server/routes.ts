@@ -123,7 +123,12 @@ export async function registerRoutes(
       secret: process.env.SESSION_SECRET || "secret",
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: app.get("env") === "production" },
+      proxy: true, // Required for Render/Cloudflare to trust the headers
+      cookie: {
+        secure: true, // Must be true for SameSite: none
+        sameSite: 'none', // Required for cross-origin (Capacitor to Render)
+        maxAge: 24 * 60 * 60 * 1000
+      },
     })
   );
 
