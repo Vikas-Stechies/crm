@@ -23,7 +23,7 @@ export function useAuth() {
 
 // Ensure this matches the logic in your queryClient.ts
 const isNative = window.hasOwnProperty('Capacitor');
-const API_BASE_URL = isNative ? "https://crm.outhillsmanali.com/" : "";
+const API_BASE_URL = isNative ? "https://crm.outhillsmanali.com" : "";
 
 const getAbsoluteUrl = (path: string) => {
   if (path.startsWith('http')) return path;
