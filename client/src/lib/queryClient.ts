@@ -6,24 +6,25 @@ async function throwIfResNotOk(res: Response) {
     throw new Error(`${res.status}: ${text}`);
   }
 }
-const isNative = window.hasOwnProperty('Capacitor');
+
+// Safe check for window to avoid SSR errors
+const isNative = typeof window !== 'undefined' && window.hasOwnProperty('Capacitor');
 const API_BASE_URL = isNative ? "https://crm.outhillsmanali.com" : "";
-const getAbsoluteUrl = (path: string) => {
+
+export const getAbsoluteUrl = (path: string) => {
   if (path.startsWith('http')) return path;
   // Ensure we don't end up with double slashes like //api
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE_URL}${cleanPath}`;
 };
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Construct absolute URL
-  const absoluteUrl = (isNative && !url.startsWith('http'))
-    ? `${API_BASE_URL}${url}`
-    : url;
-  //const absoluteUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  // Use the standardized helper for consistent absolute URLs across both web and native
+  const absoluteUrl = getAbsoluteUrl(url);
 
   const res = await fetch(absoluteUrl, {
     method,
@@ -44,6 +45,7 @@ export const getQueryFn: <T>(options: {
     async ({ queryKey }) => {
       // Use the helper to ensure consistent URL logic
       const path = queryKey.join("/");
+
       const res = await fetch(getAbsoluteUrl(path), {
         credentials: "include",
       });

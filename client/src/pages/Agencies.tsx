@@ -10,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertAgencySchema } from "@shared/schema";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient"; // Import the helper
 
 export default function Agencies() {
   const { data: agencies, isLoading } = useAgencies();
@@ -19,14 +20,9 @@ export default function Agencies() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch(api.agencies.create.path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to create agency");
-      return res.json();
+      // Use apiRequest to handle absolute URLs and credentials automatically
+      const res = await apiRequest("POST", api.agencies.create.path, data);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.agencies.list.path] });
@@ -37,14 +33,9 @@ export default function Agencies() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: any) => {
-      const res = await fetch(buildUrl(api.agencies.update.path, { id }), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to update agency");
-      return res.json();
+      // Use apiRequest for updates
+      const res = await apiRequest("PATCH", buildUrl(api.agencies.update.path, { id }), data);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.agencies.list.path] });
@@ -55,11 +46,8 @@ export default function Agencies() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(buildUrl(api.agencies.delete.path, { id }), {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to delete agency");
+      // apiRequest throws automatically on error
+      await apiRequest("DELETE", buildUrl(api.agencies.delete.path, { id }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.agencies.list.path] });

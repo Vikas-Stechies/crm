@@ -13,6 +13,7 @@ import { insertHotelSchema, insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient"; // Import the helper
 
 export default function Admin() {
   const { user } = useAuth();
@@ -52,13 +53,9 @@ function HotelsManager() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch(`/api/hotels/${editingHotel.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Update failed");
-      return res.json();
+      // Replaced fetch with apiRequest to ensure absolute URLs and credentials
+      const res = await apiRequest("PATCH", `/api/hotels/${editingHotel.id}`, data);
+      return await res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }),
   });
@@ -247,13 +244,9 @@ function UsersManager() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch(`/api/users/${editingUser.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Update failed");
-      return res.json();
+      // Replaced fetch with apiRequest to ensure absolute URLs and credentials
+      const res = await apiRequest("PATCH", `/api/users/${editingUser.id}`, data);
+      return await res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
   });
@@ -379,6 +372,7 @@ function UsersManager() {
                         <FormControl><SelectTrigger><SelectValue placeholder="Select hotel" /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="0">Unassigned</SelectItem>
+                          <SelectItem value="owner">Owner</SelectItem>
                           {hotels?.map(h => (
                             <SelectItem key={h.id} value={h.id.toString()}>{h.name}</SelectItem>
                           ))}
