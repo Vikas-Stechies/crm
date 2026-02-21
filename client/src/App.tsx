@@ -14,6 +14,8 @@ import Revenue from "@/pages/Revenue";
 import Agencies from "@/pages/Agencies";
 import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
+import { useEffect } from "react";
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 function ProtectedRoute({ component: Component, path }: { component: any, path: string }) {
   const { user, isLoading } = useAuth();
@@ -94,6 +96,40 @@ function Router() {
 }
 
 function App() {
+
+  useEffect(() => {
+    const checkAndScheduleNotifications = async () => {
+      const warningMessage = localStorage.getItem("sub_warning");
+      if (!warningMessage) {
+        await LocalNotifications.cancel({ notifications: [{ id: 999 }] });
+        return;
+      }
+      const perm = await LocalNotifications.requestPermissions();
+      if (perm.display !== 'granted') return;
+      // Check if already scheduled to avoid duplicates
+      const pending = await LocalNotifications.getPending();
+      if (pending.notifications.some(n => n.id === 999)) return;
+
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title: "Subscription Exiring Soon",
+            body: warningMessage,
+            id: 999,
+            schedule: {
+              at: new Date(Date.now() + 1000 * 5),
+              repeats: true,
+              every: 'two-hours' as any,
+              allowWhileIdle: true
+            }
+          }
+        ]
+      });
+    };
+
+    checkAndScheduleNotifications();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

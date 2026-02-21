@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast"; // <-- Added for popup notifications
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 const loginSchema = z.object({
   username: z.string().email("Please enter a valid email"),
@@ -37,17 +38,37 @@ export default function Login() {
 
   const onSubmit = (data: z.infer<typeof loginSchema>) => {
     loginMutation.mutate(data, {
-      // onSuccess: (userData: any) => {
-      // Display the 10-day expiration warning as a popup on successful login
-      //   if (userData?.subscriptionWarning) {
-      //     toast({
-      //       title: "Subscription Notice",
-      //       description: userData.subscriptionWarning,
-      //       variant: "destructive",
-      //       duration: 10000, // Keep visible a bit longer
-      //     });
-      //   }
-      // },
+      onSuccess: async (userData: any) => {
+        // Trigger Push Notification if warning exists
+        if (userData?.subscriptionWarning) {
+          localStorage.setItem("sub_warning", userData.subscriptionWarning);
+          try {
+            // Request permission first (required for iOS/Android 13+)
+            const permission = await LocalNotifications.requestPermissions();
+
+            if (permission.display === 'granted') {
+              await LocalNotifications.schedule({
+                notifications: [
+                  {
+                    title: "Subscription Notice",
+                    body: userData.subscriptionWarning,
+                    id: 1,
+                    schedule: { at: new Date(Date.now() + 1000) }, // Send after 1 second
+                    sound: 'default',
+                    actionTypeId: "",
+                    extra: null
+                  }
+                ]
+              });
+            }
+          } catch (error) {
+            console.error("Could not send push notification", error);
+          }
+
+        } else {
+          localStorage.removeItem("sub_warning");
+        }
+      },
       onError: (error) => {
         // Display the blocked/expired expiration as a popup
         toast({
