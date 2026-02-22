@@ -492,9 +492,13 @@ Provide a JSON response with exactly these keys: "analysis" (short text), "forec
       const responseText = await askAI(prompt);
       const cleanJson = responseText.replace(/```json|```/g, '').trim();
       res.json(JSON.parse(cleanJson));
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "AI forecast failed" });
+    } catch (err: any) {
+      console.error("AI Route Error:", err);
+      // Send the actual error message to the browser network tab
+      res.status(500).json({
+        message: "AI forecast failed",
+        errorDetail: err.message || err.toString()
+      });
     }
   });
 
@@ -516,9 +520,13 @@ Return a JSON array of objects with keys: "date" (YYYY-MM-DD), "housekeepersNeed
       const responseText = await askAI(prompt);
       const cleanJson = responseText.replace(/```json|```/g, '').trim();
       res.json(JSON.parse(cleanJson));
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "AI staffing optimization failed" });
+    } catch (err: any) {
+      console.error("AI Route Error:", err);
+      // Send the actual error message to the browser network tab
+      res.status(500).json({
+        message: "AI forecast failed",
+        errorDetail: err.message || err.toString()
+      });
     }
   });
 
@@ -531,8 +539,13 @@ Keep it concise, hospitable, and do not include a subject line.`;
 
       const message = await askAI(prompt);
       res.json({ message });
-    } catch (err) {
-      res.status(500).json({ message: "Failed to generate message" });
+    } catch (err: any) {
+      console.error("AI Route Error:", err);
+      // Send the actual error message to the browser network tab
+      res.status(500).json({
+        message: "AI forecast failed",
+        errorDetail: err.message || err.toString()
+      });
     }
   });
 
@@ -544,8 +557,13 @@ Write a professional, empathetic response. If negative, apologize and offer to m
 
       const response = await askAI(prompt);
       res.json({ response });
-    } catch (err) {
-      res.status(500).json({ message: "Failed to generate review response" });
+    } catch (err: any) {
+      console.error("AI Route Error:", err);
+      // Send the actual error message to the browser network tab
+      res.status(500).json({
+        message: "AI forecast failed",
+        errorDetail: err.message || err.toString()
+      });
     }
   });
 
