@@ -415,10 +415,18 @@ export async function registerRoutes(
 
       const updatedBooking = await storage.updateBooking(id, updates);
 
-      // Email Trigger Logic
-      const user = req.user as any;
       if (oldBooking.totalCost !== updatedBooking.totalCost || oldBooking.receipt !== updatedBooking.receipt) {
-        sendComparisonEmail("umesh.sharma.dk@gmail.com", oldBooking, updatedBooking);
+        const allUsers = await storage.getUsers();
+        const owners = allUsers.filter(u => u.hotelId === oldBooking.hotelId && u.role === 'owner');
+        owners.forEach(owner => {
+          sendComparisonEmail(owner.email, oldBooking, updatedBooking).catch(err => {
+            console.error(`Failed to send email to owner ${owner.email}:`, err);
+          });
+        });
+
+        if (owners.length === 0) {
+          console.error(`No owner found for hotelId ${oldBooking.hotelId} to send update email.`);
+        }
       }
 
       res.json(updatedBooking);
