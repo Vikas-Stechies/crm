@@ -223,6 +223,7 @@ export class DatabaseStorage implements IStorage {
       revenue: number;
       receipt: number;
       balance: number;
+      overPay: number;
     }>();
 
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -249,14 +250,26 @@ export class DatabaseStorage implements IStorage {
           agencyId,
           revenue: 0,
           receipt: 0,
-          balance: 0
+          balance: 0,
+          overPay: 0
         });
       }
 
+      // const stats = agencyStatsMap.get(key)!;
+      // stats.revenue += (b.totalCost || 0);
+      // stats.receipt += (b.receipt || 0);
+      // stats.balance += (b.balance || 0);
       const stats = agencyStatsMap.get(key)!;
       stats.revenue += (b.totalCost || 0);
       stats.receipt += (b.receipt || 0);
-      stats.balance += (b.balance || 0);
+
+      // Calculate Balance vs Over Pay
+      const bookingBalance = (b.totalCost || 0) - (b.receipt || 0);
+      if (bookingBalance > 0) {
+        stats.balance += bookingBalance; // Positive means they owe money
+      } else if (bookingBalance < 0) {
+        stats.overPay += Math.abs(bookingBalance); // Negative means they overpaid
+      }
     });
 
     return {
@@ -273,7 +286,8 @@ export class DatabaseStorage implements IStorage {
         agencyId: s.agencyId,
         revenue: s.revenue / 100,
         receipt: s.receipt / 100,
-        balance: s.balance / 100
+        balance: s.balance / 100,
+        overPay: s.overPay / 100
       })).sort((a, b) => b.revenue - a.revenue) // Sort by revenue descending
     };
   }

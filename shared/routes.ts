@@ -229,12 +229,12 @@ export const api = {
         200: z.object({
           monthly: z.array(z.object({ name: z.string(), revenue: z.number() })),
           yearly: z.array(z.object({ name: z.string(), revenue: z.number() })),
-          // UPDATE THIS SECTION
           byAgency: z.array(z.object({
             name: z.string(),
             revenue: z.number(),
             receipt: z.number().optional(),
             balance: z.number().optional(),
+            overPay: z.number().optional(), // <--- ADD THIS LINE
             agencyId: z.number().nullable().optional()
           })),
         }),

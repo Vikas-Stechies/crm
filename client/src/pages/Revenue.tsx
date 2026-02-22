@@ -75,6 +75,7 @@ export default function Revenue() {
                 <TableHead>Total Revenue</TableHead>
                 <TableHead>Receipt (Paid)</TableHead>
                 <TableHead>Balance (Due)</TableHead>
+                <TableHead>Over Pay</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,6 +92,7 @@ export default function Revenue() {
                   <TableCell>${agency.revenue.toFixed(2)}</TableCell>
                   <TableCell className="text-green-600">${agency.receipt?.toFixed(2) || '0.00'}</TableCell>
                   <TableCell className="text-red-600">${agency.balance?.toFixed(2) || '0.00'}</TableCell>
+                  <TableCell className="text-orange-500">${agency.overPay?.toFixed(2) || '0.00'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
