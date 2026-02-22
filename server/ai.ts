@@ -1,7 +1,7 @@
+// server/ai.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-// Using gemini-1.5-flash for fast, multimodal tasks
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export async function askAI(prompt: string): Promise<string> {
@@ -11,8 +11,9 @@ export async function askAI(prompt: string): Promise<string> {
   try {
     const result = await model.generateContent(prompt);
     return result.response.text();
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI Generation Error:", error);
-    throw new Error("Failed to generate AI content");
+    // CHANGE THIS LINE to throw the actual error message from Google
+    throw new Error(`Google API Error: ${error.message}`);
   }
 }
