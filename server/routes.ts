@@ -23,6 +23,15 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
+
+// ADD THIS VERIFICATION BLOCK
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error("🔴 SMTP Connection Error:", error);
+  } else {
+    console.log("🟢 SMTP Server is ready to send emails");
+  }
+});
 // Auth Helper Functions
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
