@@ -23,15 +23,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
-
-// ADD THIS VERIFICATION BLOCK
-transporter.verify(function (error, success) {
-  if (error) {
-    console.error("🔴 SMTP Connection Error:", error);
-  } else {
-    console.log("🟢 SMTP Server is ready to send emails");
-  }
-});
 // Auth Helper Functions
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -428,7 +419,7 @@ export async function registerRoutes(
         const allUsers = await storage.getUsers();
         const owners = allUsers.filter(u => u.hotelId === oldBooking.hotelId && u.role === 'owner');
         owners.forEach(owner => {
-          sendComparisonEmail("umesh.sharma.dk@gmail.com", oldBooking, updatedBooking).catch(err => {
+          sendComparisonEmail(owner.email, oldBooking, updatedBooking).catch(err => {
             console.error(`Failed to send email to owner ${owner.email}:`, err);
           });
         });
