@@ -17,18 +17,24 @@ export default function AIAssistant() {
         </div>
         <h1 className="text-3xl font-bold font-display">AI Assistant</h1>
       </div>
+      <ChatbotTab />
+      {/* <Tabs defaultValue="chat" className="w-full"> */}
+      {/* <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8 h-auto p-1"> */}
+      {/* <TabsTrigger value="chat">Assistant</TabsTrigger> */}
+      {/* <TabsTrigger value="scoring">Agency Rank</TabsTrigger>
+          <TabsTrigger value="forecasting">Forecast</TabsTrigger>
+          <TabsTrigger value="staffing">Staffing</TabsTrigger>
+          <TabsTrigger value="engagement">Messages</TabsTrigger>
+          <TabsTrigger value="reviews">Reviews</TabsTrigger> */}
+      {/* </TabsList> */}
 
-      <Tabs defaultValue="chat" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8 h-auto p-1">
-          <TabsTrigger value="chat">Assistant</TabsTrigger>
-          <TabsTrigger value="scoring">Agency Rank</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="chat"><ChatbotTab /></TabsContent>
-        <TabsContent value="scoring"><AgencyScoringTab /></TabsContent>
-        <TabsContent value="reviews"><ReviewsTab /></TabsContent>
-      </Tabs>
+      {/* <TabsContent value="chat"><ChatbotTab /></TabsContent> */}
+      {/* <TabsContent value="scoring"><AgencyScoringTab /></TabsContent>
+        <TabsContent value="forecasting"><ForecastingTab /></TabsContent>
+        <TabsContent value="staffing"><StaffingTab /></TabsContent>
+        <TabsContent value="engagement"><EngagementTab /></TabsContent>
+        <TabsContent value="reviews"><ReviewsTab /></TabsContent> */}
+      {/* </Tabs> */}
     </div>
   );
 }
