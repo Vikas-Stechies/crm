@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Brain, Users, MessageSquare, Loader2, Bot, Send, TrendingUp } from "lucide-react";
+import { Sparkles, Brain, Users, MessageSquare, Loader2, Bot, Send, TrendingUp, Mic, MicOff } from "lucide-react";
 import { useAiForecast, useAiStaffing, useGenerateMessage, useGenerateReviewResponse, useAiChat, useAiAgencyScoring } from "@/hooks/use-ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -85,16 +85,68 @@ function AgencyScoringTab() {
 }
 function ChatbotTab() {
   const [input, setInput] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([
-    { role: 'ai', text: "Hello! I am your CRM Assistant. Ask me about hotel management best practices or our current booking stats." }
+    { role: 'ai', text: "Hello! I am your CRM Assistant. Ask me about hotel management best practices or our current booking stats. You can type or use the microphone to speak in any language!" }
   ]);
   const { mutate, isPending } = useAiChat();
+
+  // Reference for the speech recognition instance
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Initialize Web Speech API
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+
+      // Let the browser auto-detect the spoken language
+      recognitionRef.current.lang = '';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput((prev) => prev ? `${prev} ${transcript}` : transcript);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } else {
+        alert("Microphone is not supported in this browser.");
+      }
+    }
+  };
 
   const handleSend = () => {
     if (!input.trim()) return;
     const userText = input;
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
     setInput("");
+
+    // Stop listening if user manually clicks send while mic is open
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    }
 
     mutate({ message: userText }, {
       onSuccess: (data) => {
@@ -110,14 +162,14 @@ function ChatbotTab() {
     <Card className="h-[600px] flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Bot className="w-5 h-5 text-primary" /> CRM Assistant</CardTitle>
-        <CardDescription>Ask questions in plain English.</CardDescription>
+        <CardDescription>Ask questions in plain English or speak in your native language.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-end overflow-hidden pb-4">
         <ScrollArea className="flex-1 pr-4 mb-4">
           <div className="space-y-4">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 border border-border/50'}`}>
+                <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 border border-border/50'}`}>
                   {msg.text}
                 </div>
               </div>
@@ -131,14 +183,26 @@ function ChatbotTab() {
             )}
           </div>
         </ScrollArea>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* New Microphone Button */}
+          <Button
+            variant={isListening ? "destructive" : "outline"}
+            size="icon"
+            onClick={toggleListening}
+            className="shrink-0 transition-all"
+            title="Click to speak"
+          >
+            {isListening ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
+          </Button>
+
           <Input
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Type your message..."
+            placeholder={isListening ? "Listening..." : "Type or speak your message..."}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
           />
-          <Button disabled={isPending || !input.trim()} onClick={handleSend}>
+
+          <Button disabled={isPending || !input.trim()} onClick={handleSend} className="shrink-0">
             <Send className="w-4 h-4" />
           </Button>
         </div>

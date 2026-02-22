@@ -572,25 +572,55 @@ Write a professional, empathetic response. If negative, apologize and offer to m
       const user = req.user as any;
       const hotelId = user.hotelId || 1;
 
-      // Give the AI some real context about the hotel right now
+      // 1. Fetch the "Entire Database" for this hotel
       const bookings = await storage.getBookingsByHotel(hotelId);
-      const activeBookings = bookings.filter(b => new Date(b.checkOut) >= new Date()).length;
+      const agencies = await storage.getAgencies();
 
-      const prompt = `You are a helpful, professional AI Assistant built into a Hotel CRM. 
-Current Hotel Context:
-- Today's Date: ${new Date().toLocaleDateString()}
-- Current Active/Upcoming Bookings: ${activeBookings}
-- Total Bookings in System: ${bookings.length}
+      // 2. Create a lookup map for agencies to resolve agency names
+      const agencyMap = agencies.reduce((acc, a) => {
+        acc[a.id] = a.name;
+        return acc;
+      }, {} as Record<number, string>);
 
-User Query: "${message}"
+      // 3. Compress the booking data to save tokens and make it easy for AI to read
+      // We convert dates to standard YYYY-MM-DD format for easier AI date-math
+      const compactBookings = bookings.map(b => ({
+        id: b.id,
+        guest: b.guestName,
+        checkIn: new Date(b.checkIn).toLocaleDateString('en-CA'),
+        checkOut: new Date(b.checkOut).toLocaleDateString('en-CA'),
+        rooms: b.numberOfRooms,
+        revenue: (b.totalCost || 0) / 100, // Convert cents to dollars/rupees
+        balance: (b.balance || 0) / 100,
+        agency: b.agencyId ? agencyMap[b.agencyId] : 'Direct Booking'
+      }));
 
-Provide a concise, helpful answer. If the user asks for data you don't have, politely explain you only have access to basic booking counts right now.`;
+      const compactAgencies = agencies.map(a => ({ id: a.id, name: a.name }));
+
+      // 4. Build the super-prompt with all the data
+      const prompt = `You are an intelligent Data Analyst and CRM Assistant for a hotel.
+
+CURRENT SYSTEM CONTEXT:
+- Today's Date is: ${new Date().toLocaleDateString('en-CA')}
+
+DATABASE DUMP (JSON FORMAT):
+Agencies: ${JSON.stringify(compactAgencies)}
+Bookings: ${JSON.stringify(compactBookings)}
+
+USER QUERY: "${message}"
+
+INSTRUCTIONS:
+1. You have been provided with the complete bookings and agencies database above. 
+2. Use this data to accurately answer the user's query. You can count bookings, sum up revenue, filter by dates, or find specific guests.
+3. If they ask about "this month", use Today's Date to determine the current month and filter the check-in/check-out dates accordingly.
+4. Keep your answer conversational, helpful, and concise. Do not expose the raw JSON to the user.
+5. IMPORTANT: Detect the language of the User Query and respond entirely in that EXACT same language.`;
 
       const response = await askAI(prompt);
       res.json({ response });
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Chat failed" });
+      console.error("Chatbot Error:", err);
+      res.status(500).json({ message: "Chat failed to process data" });
     }
   });
 
