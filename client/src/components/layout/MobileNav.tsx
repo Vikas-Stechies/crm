@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Calendar, PieChart, DollarSign, Settings, LogOut, Building2 } from "lucide-react";
+import { LayoutDashboard, Calendar, PieChart, DollarSign, Settings, LogOut, Building2, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ export function MobileNav() {
     { href: "/bookings", icon: Calendar, label: "Bookings" },
     { href: "/agencies", icon: Building2, label: "Agencies" },
     { href: "/occupancy", icon: PieChart, label: "Occupancy" },
+    { href: "/ai-assistant", icon: Sparkles, label: "AI" },
     // Only add Revenue if the user role is strictly "owner"
     ...(user.role === 'owner' ? [{ href: "/revenue", icon: DollarSign, label: "Revenue" }] : [])
   ];
