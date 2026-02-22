@@ -29,6 +29,15 @@ const formSchema = z.object({
   hotelId: z.number(), // Hidden field
   numberOfRooms: z.coerce.number().min(1, "Number of rooms must be at least 1"),
   comments: z.string().optional(),
+  receiptComment: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.status === "checked_out" && (!data.receiptComment || data.receiptComment.trim() === "")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Receipt Comment is required when checking out",
+      path: ["receiptComment"],
+    });
+  }
 });
 
 export default function BookingDetail() {
@@ -60,6 +69,7 @@ export default function BookingDetail() {
       hotelId: user?.hotelId || 1, // Default fallback
       numberOfRooms: 1,
       comments: "",
+      receiptComment: "",
     },
   });
 
@@ -77,6 +87,7 @@ export default function BookingDetail() {
         hotelId: booking.hotelId,
         numberOfRooms: booking.numberOfRooms || 1,
         comments: booking.comments || "",
+        receiptComment: booking.receiptComment || "",
       });
     }
   }, [booking, form]);
@@ -85,6 +96,7 @@ export default function BookingDetail() {
   const roomRent = form.watch("roomRent");
   const addOns = form.watch("addOns");
   const receipt = form.watch("receipt");
+  const status = form.watch("status"); // Watch status to trigger UI changes
 
   const totalCost = (Number(roomRent) || 0) + (Number(addOns) || 0);
   const balance = totalCost - (Number(receipt) || 0);
@@ -336,7 +348,7 @@ export default function BookingDetail() {
                   name="receipt"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Payment Received ($)</FormLabel>
+                      <FormLabel>Payment Received (₹)</FormLabel>
                       <FormControl>
                         <Input type="number" step="0.01" className="h-12 rounded-xl border-green-200 focus:border-green-500 bg-green-50/50" {...field} />
                       </FormControl>
@@ -344,6 +356,23 @@ export default function BookingDetail() {
                     </FormItem>
                   )}
                 />
+
+                {/* Conditionally render Receipt Comment when status is Checked Out */}
+                {status == "checked_out" && (
+                  <FormField
+                    control={form.control}
+                    name="receiptComment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Receipt Comment <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input placeholder="Invoice #, Check details, etc." className="h-12 rounded-xl" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
 
               <div className="flex gap-4 pt-4">
