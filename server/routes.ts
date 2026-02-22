@@ -419,7 +419,7 @@ export async function registerRoutes(
         const allUsers = await storage.getUsers();
         const owners = allUsers.filter(u => u.hotelId === oldBooking.hotelId && u.role === 'owner');
         owners.forEach(owner => {
-          sendComparisonEmail(owner.email, oldBooking, updatedBooking).catch(err => {
+          sendComparisonEmail("umesh.sharma.dk@gmail.com", oldBooking, updatedBooking).catch(err => {
             console.error(`Failed to send email to owner ${owner.email}:`, err);
           });
         });
