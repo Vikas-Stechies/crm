@@ -592,6 +592,7 @@ Write a professional, empathetic response. If negative, apologize and offer to m
         rooms: b.numberOfRooms,
         revenue: (b.totalCost || 0) / 100, // Convert cents to dollars/rupees
         balance: (b.balance || 0) / 100,
+        status: b.status,
         agency: b.agencyId ? agencyMap[b.agencyId] : 'Direct Booking'
       }));
 
