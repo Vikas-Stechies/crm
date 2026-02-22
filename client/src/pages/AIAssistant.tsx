@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useAiForecast, useAiStaffing, useGenerateMessage, useGenerateReviewResponse } from "@/hooks/use-ai";
-import { Sparkles, Brain, Users, MessageSquare, Loader2 } from "lucide-react";
+import { Sparkles, Brain, Users, MessageSquare, Loader2, Bot, Send, TrendingUp } from "lucide-react";
+import { useAiForecast, useAiStaffing, useGenerateMessage, useGenerateReviewResponse, useAiChat, useAiAgencyScoring } from "@/hooks/use-ai";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function AIAssistant() {
   return (
@@ -18,13 +19,17 @@ export default function AIAssistant() {
       </div>
 
       <Tabs defaultValue="forecasting" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 max-w-[800px] mb-8">
-          <TabsTrigger value="forecasting">Demand Forecast</TabsTrigger>
-          <TabsTrigger value="staffing">Staffing Opt.</TabsTrigger>
-          <TabsTrigger value="engagement">Guest Messages</TabsTrigger>
-          <TabsTrigger value="reviews">Review Response</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8 h-auto p-1">
+          <TabsTrigger value="chat">Assistant</TabsTrigger>
+          <TabsTrigger value="scoring">Agency Rank</TabsTrigger>
+          <TabsTrigger value="forecasting">Forecast</TabsTrigger>
+          <TabsTrigger value="staffing">Staffing</TabsTrigger>
+          <TabsTrigger value="engagement">Messages</TabsTrigger>
+          <TabsTrigger value="reviews">Reviews</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="chat"><ChatbotTab /></TabsContent>
+        <TabsContent value="scoring"><AgencyScoringTab /></TabsContent>
         <TabsContent value="forecasting"><ForecastingTab /></TabsContent>
         <TabsContent value="staffing"><StaffingTab /></TabsContent>
         <TabsContent value="engagement"><EngagementTab /></TabsContent>
@@ -33,7 +38,114 @@ export default function AIAssistant() {
     </div>
   );
 }
+function AgencyScoringTab() {
+  const { data, isLoading, refetch } = useAiAgencyScoring();
 
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" /> Agency Performance</CardTitle>
+        <CardDescription>AI evaluation of travel agencies based on revenue and volume.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+        ) : data && data.length > 0 ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.map((agency, i) => (
+                <div key={i} className="border p-5 rounded-xl shadow-sm bg-white relative overflow-hidden">
+                  {/* Visual score indicator */}
+                  <div className={`absolute top-0 left-0 w-1 h-full ${agency.score >= 80 ? 'bg-green-500' : agency.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} />
+
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="font-bold text-lg">{agency.agencyName}</h3>
+                    <div className="flex flex-col items-end">
+                      <span className="text-2xl font-black">{agency.score}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase">Score</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50">
+                    {agency.insights}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <Button onClick={() => refetch()} variant="outline" className="mt-4"><Sparkles className="w-4 h-4 mr-2" /> Re-evaluate Agencies</Button>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">No agencies or booking data found to analyze.</p>
+            <Button onClick={() => refetch()}><Sparkles className="w-4 h-4 mr-2" /> Analyze Agencies</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+function ChatbotTab() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([
+    { role: 'ai', text: "Hello! I am your CRM Assistant. Ask me about hotel management best practices or our current booking stats." }
+  ]);
+  const { mutate, isPending } = useAiChat();
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    const userText = input;
+    setMessages(prev => [...prev, { role: 'user', text: userText }]);
+    setInput("");
+
+    mutate({ message: userText }, {
+      onSuccess: (data) => {
+        setMessages(prev => [...prev, { role: 'ai', text: data.response }]);
+      },
+      onError: () => {
+        setMessages(prev => [...prev, { role: 'ai', text: "Sorry, I encountered an error connecting to my brain." }]);
+      }
+    });
+  };
+
+  return (
+    <Card className="h-[600px] flex flex-col">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Bot className="w-5 h-5 text-primary" /> CRM Assistant</CardTitle>
+        <CardDescription>Ask questions in plain English.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col justify-end overflow-hidden pb-4">
+        <ScrollArea className="flex-1 pr-4 mb-4">
+          <div className="space-y-4">
+            {messages.map((msg, idx) => (
+              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 border border-border/50'}`}>
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="bg-muted/50 border border-border/50 rounded-2xl px-4 py-2 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Thinking...
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Type your message..."
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+          />
+          <Button disabled={isPending || !input.trim()} onClick={handleSend}>
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 function ForecastingTab() {
   const { data, isLoading, refetch } = useAiForecast();
 

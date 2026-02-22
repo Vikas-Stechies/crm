@@ -291,6 +291,27 @@ export const api = {
         200: z.object({ response: z.string() }),
       },
     },
+    chat: {
+      method: 'POST' as const,
+      path: '/api/ai/chat' as const,
+      input: z.object({
+        message: z.string(),
+      }),
+      responses: {
+        200: z.object({ response: z.string() }),
+      },
+    },
+    agencyScoring: {
+      method: 'GET' as const,
+      path: '/api/ai/agency-scoring' as const,
+      responses: {
+        200: z.array(z.object({
+          agencyName: z.string(),
+          score: z.number(),
+          insights: z.string(),
+        })),
+      },
+    },
   },
 
 };

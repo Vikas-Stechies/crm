@@ -39,3 +39,21 @@ export function useGenerateReviewResponse() {
     }
   });
 }
+export function useAiChat() {
+  return useMutation({
+    mutationFn: async (data: typeof api.ai.chat.input._type) => {
+      const res = await apiRequest("POST", api.ai.chat.path, data);
+      return api.ai.chat.responses[200].parse(await res.json());
+    }
+  });
+}
+
+export function useAiAgencyScoring() {
+  return useQuery({
+    queryKey: [api.ai.agencyScoring.path],
+    queryFn: async () => {
+      const res = await apiRequest("GET", api.ai.agencyScoring.path);
+      return api.ai.agencyScoring.responses[200].parse(await res.json());
+    }
+  });
+}

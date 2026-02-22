@@ -514,7 +514,7 @@ Provide a JSON response with exactly these keys: "analysis" (short text), "forec
 
       const prompt = `You are a hotel operations manager. Based on this 7-day forecast:
 ${promptData}
-Calculate optimal daily staffing based on: 1 Housekeeper cleans 15 checkout or 30 stay-over rooms. 1 Front Desk Agent per 20 check-ins/check-outs.
+Calculate optimal daily staffing based on: 1 Housekeeper cleans 15 checkout or 30 stay-over rooms. 2 Housekeeprs to do the bedding and room setup. 1 Front Desk Agent per 20 check-ins/check-outs.
 Return a JSON array of objects with keys: "date" (YYYY-MM-DD), "housekeepersNeeded" (number), "frontDeskNeeded" (number), "notes" (string explaining peak load). Return ONLY valid JSON array.`;
 
       const responseText = await askAI(prompt);
@@ -566,7 +566,66 @@ Write a professional, empathetic response. If negative, apologize and offer to m
       });
     }
   });
+  app.post(api.ai.chat.path, requireAuth, async (req, res) => {
+    try {
+      const { message } = api.ai.chat.input.parse(req.body);
+      const user = req.user as any;
+      const hotelId = user.hotelId || 1;
 
+      // Give the AI some real context about the hotel right now
+      const bookings = await storage.getBookingsByHotel(hotelId);
+      const activeBookings = bookings.filter(b => new Date(b.checkOut) >= new Date()).length;
+
+      const prompt = `You are a helpful, professional AI Assistant built into a Hotel CRM. 
+Current Hotel Context:
+- Today's Date: ${new Date().toLocaleDateString()}
+- Current Active/Upcoming Bookings: ${activeBookings}
+- Total Bookings in System: ${bookings.length}
+
+User Query: "${message}"
+
+Provide a concise, helpful answer. If the user asks for data you don't have, politely explain you only have access to basic booking counts right now.`;
+
+      const response = await askAI(prompt);
+      res.json({ response });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Chat failed" });
+    }
+  });
+
+  app.get(api.ai.agencyScoring.path, requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const hotelId = user.hotelId || 1;
+
+      // Aggregate data for the AI to analyze
+      const agencies = await storage.getAgencies();
+      const bookings = await storage.getBookingsByHotel(hotelId);
+
+      const agencyStats = agencies.map(agency => {
+        const agencyBookings = bookings.filter(b => b.agencyId === agency.id);
+        const totalRevenue = agencyBookings.reduce((sum, b) => sum + (b.totalCost || 0), 0);
+        return `Agency: ${agency.name} | Total Bookings: ${agencyBookings.length} | Total Revenue Generated: $${totalRevenue / 100}`;
+      }).join("\n");
+
+      const prompt = `You are an expert hotel performance analyst. Evaluate these travel agencies based on their booking volume and revenue generation:
+${agencyStats || "No agencies found."}
+
+Provide a JSON array of objects with exactly these keys: 
+"agencyName" (string), 
+"score" (number from 1 to 100 representing their value/performance), 
+"insights" (a short sentence explaining the score and actionable advice).
+Return ONLY a valid JSON array.`;
+
+      const responseText = await askAI(prompt);
+      const cleanJson = responseText.replace(/```json|```/g, '').trim();
+      res.json(JSON.parse(cleanJson));
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Agency scoring failed" });
+    }
+  });
   // --- End AI Features Routes ---
 
   // Seed Admin User if none exists
