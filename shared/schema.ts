@@ -117,5 +117,6 @@ export type RevenueStats = {
   revenue: number;
   receipt?: number;  // Added
   balance?: number;  // Added
+  overPay?: number;
   agencyId?: number | null; // Added for linking
 };

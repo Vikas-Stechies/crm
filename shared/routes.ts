@@ -240,7 +240,59 @@ export const api = {
         }),
       },
     },
-  }
+  },
+  ai: {
+    forecast: {
+      method: 'GET' as const,
+      path: '/api/ai/forecast' as const,
+      responses: {
+        200: z.object({
+          analysis: z.string(),
+          forecast: z.string(),
+          pricingRecommendation: z.string(),
+        }),
+      },
+    },
+    staffing: {
+      method: 'GET' as const,
+      path: '/api/ai/staffing-optimization' as const,
+      responses: {
+        200: z.array(z.object({
+          date: z.string(),
+          housekeepersNeeded: z.number(),
+          frontDeskNeeded: z.number(),
+          notes: z.string(),
+        })),
+      },
+    },
+    generateMessage: {
+      method: 'POST' as const,
+      path: '/api/ai/generate-message' as const,
+      input: z.object({
+        guestName: z.string(),
+        checkIn: z.string(),
+        checkOut: z.string(),
+        type: z.string(),
+        comments: z.string().optional(),
+      }),
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
+    reviewResponse: {
+      method: 'POST' as const,
+      path: '/api/ai/review-response' as const,
+      input: z.object({
+        reviewText: z.string(),
+        rating: z.number(),
+        guestName: z.string().optional(),
+      }),
+      responses: {
+        200: z.object({ response: z.string() }),
+      },
+    },
+  },
+
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

@@ -16,6 +16,7 @@ import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { LocalNotifications } from '@capacitor/local-notifications';
+import AIAssistant from "@/pages/AIAssistant";
 
 function ProtectedRoute({ component: Component, path }: { component: any, path: string }) {
   const { user, isLoading } = useAuth();
@@ -77,7 +78,9 @@ function Router() {
       <Route path="/agencies">
         <ProtectedRoute component={Agencies} path="/agencies" />
       </Route>
-
+      <Route path="/ai-assistant">
+        <ProtectedRoute component={AIAssistant} path="/ai-assistant" />
+      </Route>
       <Route path="/admin">
         <ProtectedRoute component={Admin} path="/admin" />
       </Route>

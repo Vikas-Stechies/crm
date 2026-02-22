@@ -10,6 +10,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import MemoryStore from "memorystore";
 import nodemailer from "nodemailer";
+import { askAI } from "./ai";
 
 const scryptAsync = promisify(scrypt);
 const SessionStore = MemoryStore(session);
@@ -471,6 +472,85 @@ export async function registerRoutes(
     const stats = await storage.getForecastStats(user.hotelId);
     res.json(stats);
   });
+
+
+  // --- AI Features Routes ---
+  app.get(api.ai.forecast.path, requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.hotelId && user.role !== 'admin') return res.status(400).json({ message: "No hotel assigned" });
+
+      const stats = await storage.getOccupancyStats(user.hotelId || 1);
+      const dataSummary = stats.slice(0, 14).map(s =>
+        `Date: ${s.date}, Occupied: ${s.occupied}/${s.totalRooms}`
+      ).join("\n");
+
+      const prompt = `You are an expert hotel revenue manager. Analyze this 14-day occupancy data:
+${dataSummary}
+Provide a JSON response with exactly these keys: "analysis" (short text), "forecast" (short text predicting next 7 days), "pricingRecommendation" (actionable advice). Return ONLY valid JSON.`;
+
+      const responseText = await askAI(prompt);
+      const cleanJson = responseText.replace(/```json|```/g, '').trim();
+      res.json(JSON.parse(cleanJson));
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "AI forecast failed" });
+    }
+  });
+
+  app.get(api.ai.staffing.path, requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.hotelId && user.role !== 'admin') return res.status(400).json({ message: "No hotel assigned" });
+
+      const forecast = await storage.getForecastStats(user.hotelId || 1);
+      const promptData = forecast.slice(0, 7).map(f =>
+        `Date: ${f.date} | Check-ins: ${f.checkIns} | Check-outs: ${f.checkOuts} | Occupied: ${f.occupied}`
+      ).join("\n");
+
+      const prompt = `You are a hotel operations manager. Based on this 7-day forecast:
+${promptData}
+Calculate optimal daily staffing based on: 1 Housekeeper cleans 15 checkout or 30 stay-over rooms. 1 Front Desk Agent per 20 check-ins/check-outs.
+Return a JSON array of objects with keys: "date" (YYYY-MM-DD), "housekeepersNeeded" (number), "frontDeskNeeded" (number), "notes" (string explaining peak load). Return ONLY valid JSON array.`;
+
+      const responseText = await askAI(prompt);
+      const cleanJson = responseText.replace(/```json|```/g, '').trim();
+      res.json(JSON.parse(cleanJson));
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "AI staffing optimization failed" });
+    }
+  });
+
+  app.post(api.ai.generateMessage.path, requireAuth, async (req, res) => {
+    try {
+      const { guestName, checkIn, checkOut, type, comments } = api.ai.generateMessage.input.parse(req.body);
+      const prompt = `Write a warm, professional ${type} email for a hotel guest. 
+Guest: ${guestName}, Check-in: ${new Date(checkIn).toLocaleDateString()}, Check-out: ${new Date(checkOut).toLocaleDateString()}. Notes: ${comments || "None"}.
+Keep it concise, hospitable, and do not include a subject line.`;
+
+      const message = await askAI(prompt);
+      res.json({ message });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to generate message" });
+    }
+  });
+
+  app.post(api.ai.reviewResponse.path, requireAuth, async (req, res) => {
+    try {
+      const { reviewText, rating, guestName } = api.ai.reviewResponse.input.parse(req.body);
+      const prompt = `You are the manager of a highly-rated hotel. A guest named ${guestName || "Guest"} left a ${rating}-star review: "${reviewText}"
+Write a professional, empathetic response. If negative, apologize and offer to make it right. If positive, thank them graciously.`;
+
+      const response = await askAI(prompt);
+      res.json({ response });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to generate review response" });
+    }
+  });
+
+  // --- End AI Features Routes ---
+
   // Seed Admin User if none exists
   const users = await storage.getUsers();
   if (users.length === 0) {
