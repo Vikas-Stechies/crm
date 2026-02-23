@@ -45,5 +45,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+
+<key>NSSpeechRecognitionUsageDescription</key>
+<string>We need this to understand your voice commands.</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>We need the microphone to hear your voice commands.</string>
+
 </dict>
 </plist>

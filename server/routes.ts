@@ -615,25 +615,29 @@ USER QUERY: "${message}"
 INSTRUCTIONS:
 1. You can answer questions based on the database dump, and you CAN perform actions like creating or updating bookings and agencies. 
 2. You CANNOT delete anything.
-3. If the user asks for a "Daily Briefing", "Morning Briefing", or summary for today:
+3. If the user asks for a "Daily Briefing","Daily Status", "Morning Briefing", or summary for today:
    - Identify how many check-ins match Today's Date.
    - Identify how many check-outs match Today's Date.
    - Calculate total rooms currently occupied today (checkIn <= Today and checkOut > Today).
    - Sum up the "balance" of all guests currently checked-in or checking-out today to report pending payments.
    - Format this as a friendly, professional morning report in the "message" field, and set "action" to "none".
-4. If the user asks to add or update an entity, extract the necessary data.
-   - Booking fields allowed: guestName (string), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), roomRent (integer in cents, e.g., if user says 12000, output 1200000), numberOfRooms (or rooms) (integer), comments (string), receipt (integer in cents), addOns (integer in cents), agencyId (integer matching the Agencies database).
+4. If the user asks to check-in, check-out, or cancel a guest's reservation:
+   - Find that guest's booking "id" from the DATABASE DUMP, If there are multiple matches, ask the user for more details.
+   - Set "action" to "update_booking".
+   - In the "payload", strictly include the "id" and set "status" to one of: "checked_in", "checked_out", or "cancelled".
+5. If the user asks to add or update an entity, extract the necessary data.
+   - Booking fields allowed: guestName (string), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), roomRent (integer in cents, e.g., if user says 12000, output 1200000), numberOfRooms (integer), comments (string), receipt (integer in cents), addOns (integer in cents), agencyId (integer matching the Agencies database), status (string: "confirmed", "checked_in", "checked_out", "cancelled").
    - Agency fields allowed: name (string), contactEmail (string), contactPhone (string).
    - Updates MUST include the 'id' of the entity to update.
-5. You must reply ONLY with a valid JSON object matching exactly this structure:
+6. You must reply ONLY with a valid JSON object matching exactly this structure:
 {
   "action": "none" | "create_booking" | "update_booking" | "create_agency" | "update_agency",
   "payload": { ... extracted fields for the action ... },
   "message": "Your conversational response to the user"
 }
-6. If no action is needed, set action to "none" and payload to {}.
-7. Do NOT include markdown formatting like \`\`\`json. Return pure, valid JSON.
-8. The "message" should be natural and helpful. You MUST respond ONLY in either English or Hindi. If the user query is in Hindi or Hinglish, respond in Hindi. For all other queries, respond in English. Never use any other languages like Spanish or French.`;
+7. If no action is needed, set action to "none" and payload to {}.
+8. Do NOT include markdown formatting like \`\`\`json. Return pure, valid JSON.
+9. The "message" should be natural and helpful. You MUST respond ONLY in either English or Hindi. If the user query is in Hindi or Hinglish, respond in Hindi. For all other queries, respond in English. Never use any other languages.`;
 
       const responseText = await askAI(prompt);
 
