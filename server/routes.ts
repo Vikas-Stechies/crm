@@ -566,6 +566,7 @@ Write a professional, empathetic response. If negative, apologize and offer to m
       });
     }
   });
+
   app.post(api.ai.chat.path, requireAuth, async (req, res) => {
     try {
       const { message } = api.ai.chat.input.parse(req.body);
@@ -576,33 +577,33 @@ Write a professional, empathetic response. If negative, apologize and offer to m
       const bookings = await storage.getBookingsByHotel(hotelId);
       const agencies = await storage.getAgencies();
 
-      // 2. Create a lookup map for agencies to resolve agency names
-      const agencyMap = agencies.reduce((acc, a) => {
-        acc[a.id] = a.name;
-        return acc;
-      }, {} as Record<number, string>);
-
-      // 3. Compress the booking data to save tokens and make it easy for AI to read
-      // We convert dates to standard YYYY-MM-DD format for easier AI date-math
+      // 2. Compress the booking data to save tokens and ensure fields match schema
       const compactBookings = bookings.map(b => ({
         id: b.id,
-        guest: b.guestName,
+        guestName: b.guestName,
         checkIn: new Date(b.checkIn).toLocaleDateString('en-CA'),
         checkOut: new Date(b.checkOut).toLocaleDateString('en-CA'),
         rooms: b.numberOfRooms,
-        revenue: (b.totalCost || 0) / 100, // Convert cents to dollars/rupees
-        balance: (b.balance || 0) / 100,
+        roomRent: b.roomRent,
+        addOns: b.addOns,
+        receipt: b.receipt,
         status: b.status,
-        agency: b.agencyId ? agencyMap[b.agencyId] : 'Direct Booking'
+        agencyId: b.agencyId
       }));
 
-      const compactAgencies = agencies.map(a => ({ id: a.id, name: a.name }));
+      const compactAgencies = agencies.map(a => ({
+        id: a.id,
+        name: a.name,
+        contactEmail: a.contactEmail,
+        contactPhone: a.contactPhone
+      }));
 
-      // 4. Build the super-prompt with all the data
+      // 3. Build the super-prompt instructing JSON structure for actions
       const prompt = `You are an intelligent Data Analyst and CRM Assistant for a hotel.
 
 CURRENT SYSTEM CONTEXT:
 - Today's Date is: ${new Date().toLocaleDateString('en-CA')}
+- Hotel ID: ${hotelId}
 
 DATABASE DUMP (JSON FORMAT):
 Agencies: ${JSON.stringify(compactAgencies)}
@@ -611,14 +612,99 @@ Bookings: ${JSON.stringify(compactBookings)}
 USER QUERY: "${message}"
 
 INSTRUCTIONS:
-1. You have been provided with the complete bookings and agencies database above. 
-2. Use this data to accurately answer the user's query. You can count bookings, sum up revenue, filter by dates, or find specific guests.
-3. If they ask about "this month", use Today's Date to determine the current month and filter the check-in/check-out dates accordingly.
-4. Keep your answer conversational, helpful, and concise. Do not expose the raw JSON to the user.
-5. IMPORTANT: Detect the language of the User Query and respond entirely in that EXACT same language.`;
+1. You can answer questions based on the database dump, and you CAN perform actions like creating or updating bookings and agencies. 
+2. You CANNOT delete anything.
+3. If the user asks to add or update an entity, extract the necessary data.
+   - New Booking requires: guestName (string), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), roomRent (integer in cents, e.g., $100 = 10000).
+   - New Agency requires: name (string).
+   - Updates MUST include the 'id' of the entity to update.
+4. You must reply ONLY with a valid JSON object matching exactly this structure:
+{
+  "action": "none" | "create_booking" | "update_booking" | "create_agency" | "update_agency",
+  "payload": { ... extracted fields for the action ... },
+  "message": "Your conversational response to the user"
+}
+5. If no action is needed, set action to "none" and payload to {}.
+6. Do NOT include markdown formatting like \`\`\`json. Return pure, valid JSON.
+7. The "message" should be natural, helpful, and in the EXACT same language as the USER QUERY.`;
 
-      const response = await askAI(prompt);
-      res.json({ response });
+      const responseText = await askAI(prompt);
+
+      // Clean potential markdown output
+      const cleanJson = responseText.replace(/```json|```/g, '').trim();
+
+      let aiResponse;
+      try {
+        aiResponse = JSON.parse(cleanJson);
+      } catch (parseError) {
+        console.error("Failed to parse AI JSON response:", cleanJson);
+        // Fallback if the AI forgets to return JSON format
+        return res.json({ response: responseText });
+      }
+
+      // 4. Handle Requested Actions (Add / Update)
+      try {
+        if (aiResponse.action === "create_booking") {
+          const p = aiResponse.payload;
+          const roomRent = p.roomRent || 0;
+          const addOns = p.addOns || 0;
+          const receipt = p.receipt || 0;
+
+          await storage.createBooking({
+            hotelId,
+            guestName: p.guestName || "Unknown Guest",
+            checkIn: new Date(p.checkIn),
+            checkOut: new Date(p.checkOut),
+            roomRent,
+            addOns,
+            receipt,
+            totalCost: roomRent + addOns,
+            balance: (roomRent + addOns) - receipt,
+            status: p.status || "confirmed",
+            numberOfRooms: p.numberOfRooms || 1,
+            agencyId: p.agencyId || null,
+            comments: p.comments || "Created via AI Assistant"
+          } as any);
+
+        } else if (aiResponse.action === "update_booking" && aiResponse.payload.id) {
+          const p = aiResponse.payload;
+          const id = p.id;
+          delete p.id; // Don't try to update the ID
+
+          if (p.checkIn) p.checkIn = new Date(p.checkIn);
+          if (p.checkOut) p.checkOut = new Date(p.checkOut);
+
+          const oldBooking = await storage.getBooking(id);
+          if (oldBooking) {
+            const roomRent = p.roomRent ?? oldBooking.roomRent;
+            const addOns = p.addOns ?? oldBooking.addOns;
+            const receipt = p.receipt ?? oldBooking.receipt;
+
+            p.totalCost = roomRent + addOns;
+            p.balance = p.totalCost - receipt;
+            await storage.updateBooking(id, p);
+          }
+
+        } else if (aiResponse.action === "create_agency" && aiResponse.payload.name) {
+          await storage.createAgency({
+            name: aiResponse.payload.name,
+            contactEmail: aiResponse.payload.contactEmail || null,
+            contactPhone: aiResponse.payload.contactPhone || null
+          });
+
+        } else if (aiResponse.action === "update_agency" && aiResponse.payload.id) {
+          const p = aiResponse.payload;
+          const id = p.id;
+          delete p.id;
+          await storage.updateAgency(id, p);
+        }
+      } catch (dbError) {
+        console.error("Failed to execute AI action against DB:", dbError);
+        return res.json({ response: "I encountered an error while trying to save that information to the database." });
+      }
+
+      // 5. Return conversational message
+      res.json({ response: aiResponse.message || "Action processed successfully." });
     } catch (err) {
       console.error("Chatbot Error:", err);
       res.status(500).json({ message: "Chat failed to process data" });
