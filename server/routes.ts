@@ -587,6 +587,7 @@ Write a professional, empathetic response. If negative, apologize and offer to m
         roomRent: b.roomRent,
         addOns: b.addOns,
         receipt: b.receipt,
+        balance: (b.balance || 0) / 100,
         status: b.status,
         agencyId: b.agencyId
       }));
@@ -614,19 +615,25 @@ USER QUERY: "${message}"
 INSTRUCTIONS:
 1. You can answer questions based on the database dump, and you CAN perform actions like creating or updating bookings and agencies. 
 2. You CANNOT delete anything.
-3. If the user asks to add or update an entity, extract the necessary data.
+3. If the user asks for a "Daily Briefing", "Morning Briefing", or summary for today:
+   - Identify how many check-ins match Today's Date.
+   - Identify how many check-outs match Today's Date.
+   - Calculate total rooms currently occupied today (checkIn <= Today and checkOut > Today).
+   - Sum up the "balance" of all guests currently checked-in or checking-out today to report pending payments.
+   - Format this as a friendly, professional morning report in the "message" field, and set "action" to "none".
+4. If the user asks to add or update an entity, extract the necessary data.
    - Booking fields allowed: guestName (string), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), roomRent (integer in cents, e.g., if user says 12000, output 1200000), numberOfRooms (or rooms) (integer), comments (string), receipt (integer in cents), addOns (integer in cents), agencyId (integer matching the Agencies database).
    - Agency fields allowed: name (string), contactEmail (string), contactPhone (string).
    - Updates MUST include the 'id' of the entity to update.
-4. You must reply ONLY with a valid JSON object matching exactly this structure:
+5. You must reply ONLY with a valid JSON object matching exactly this structure:
 {
   "action": "none" | "create_booking" | "update_booking" | "create_agency" | "update_agency",
   "payload": { ... extracted fields for the action ... },
   "message": "Your conversational response to the user"
 }
-5. If no action is needed, set action to "none" and payload to {}.
-6. Do NOT include markdown formatting like \`\`\`json. Return pure, valid JSON.
-7. The "message" should be natural and helpful. You MUST respond ONLY in either English or Hindi. If the user query is in Hindi or Hinglish, respond in Hindi. For all other queries, respond in English. Never use any other languages like Spanish or French.`;
+6. If no action is needed, set action to "none" and payload to {}.
+7. Do NOT include markdown formatting like \`\`\`json. Return pure, valid JSON.
+8. The "message" should be natural and helpful. You MUST respond ONLY in either English or Hindi. If the user query is in Hindi or Hinglish, respond in Hindi. For all other queries, respond in English. Never use any other languages like Spanish or French.`;
 
       const responseText = await askAI(prompt);
 
