@@ -716,9 +716,13 @@ INSTRUCTIONS:
 
       // 5. Return conversational message
       res.json({ response: aiResponse.message || "Action processed successfully." });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Chatbot Error:", err);
-      res.status(500).json({ message: "Chat failed to process data" });
+      res.status(500).json({
+        message: "Chat failed to process data",
+        errorDetail: err.message || err.toString(),
+        stack: err.stack
+      });
     }
   });
 
