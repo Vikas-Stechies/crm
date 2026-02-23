@@ -615,8 +615,8 @@ INSTRUCTIONS:
 1. You can answer questions based on the database dump, and you CAN perform actions like creating or updating bookings and agencies. 
 2. You CANNOT delete anything.
 3. If the user asks to add or update an entity, extract the necessary data.
-   - New Booking requires: guestName (string), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), roomRent (integer in cents, e.g., $100 = 10000).
-   - New Agency requires: name (string).
+   - Booking fields allowed: guestName (string), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), roomRent (integer in cents, e.g., if user says 12000, output 1200000), numberOfRooms (integer), comments (string), receipt (integer in cents), addOns (integer in cents), agencyId (integer matching the Agencies database).
+   - Agency fields allowed: name (string), contactEmail (string), contactPhone (string).
    - Updates MUST include the 'id' of the entity to update.
 4. You must reply ONLY with a valid JSON object matching exactly this structure:
 {
