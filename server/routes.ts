@@ -583,7 +583,7 @@ Write a professional, empathetic response. If negative, apologize and offer to m
         guestName: b.guestName,
         checkIn: new Date(b.checkIn).toLocaleDateString('en-CA'),
         checkOut: new Date(b.checkOut).toLocaleDateString('en-CA'),
-        rooms: b.numberOfRooms,
+        numberOfRooms: b.numberOfRooms,
         roomRent: b.roomRent,
         addOns: b.addOns,
         receipt: b.receipt,
@@ -615,7 +615,7 @@ INSTRUCTIONS:
 1. You can answer questions based on the database dump, and you CAN perform actions like creating or updating bookings and agencies. 
 2. You CANNOT delete anything.
 3. If the user asks to add or update an entity, extract the necessary data.
-   - Booking fields allowed: guestName (string), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), roomRent (integer in cents, e.g., if user says 12000, output 1200000), numberOfRooms (integer), comments (string), receipt (integer in cents), addOns (integer in cents), agencyId (integer matching the Agencies database).
+   - Booking fields allowed: guestName (string), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), roomRent (integer in cents, e.g., if user says 12000, output 1200000), numberOfRooms (or rooms) (integer), comments (string), receipt (integer in cents), addOns (integer in cents), agencyId (integer matching the Agencies database).
    - Agency fields allowed: name (string), contactEmail (string), contactPhone (string).
    - Updates MUST include the 'id' of the entity to update.
 4. You must reply ONLY with a valid JSON object matching exactly this structure:
@@ -626,7 +626,7 @@ INSTRUCTIONS:
 }
 5. If no action is needed, set action to "none" and payload to {}.
 6. Do NOT include markdown formatting like \`\`\`json. Return pure, valid JSON.
-7. The "message" should be natural, helpful, and in the EXACT same language as the USER QUERY.`;
+7. The "message" should be natural and helpful. You MUST respond ONLY in either English or Hindi. If the user query is in Hindi or Hinglish, respond in Hindi. For all other queries, respond in English. Never use any other languages like Spanish or French.`;
 
       const responseText = await askAI(prompt);
 
