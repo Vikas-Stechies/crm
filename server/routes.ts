@@ -102,7 +102,7 @@ async function sendComparisonEmail(ownerEmail: string, oldData: any, newData: an
 
   try {
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"Hotel CRM" <noreply@hotelcrm.com>',
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: ownerEmail,
       subject: `Booking Updated: ${newData.guestName}`,
       html: htmlContent,
@@ -416,7 +416,7 @@ export async function registerRoutes(
 
       const updatedBooking = await storage.updateBooking(id, updates);
 
-      if (oldBooking.totalCost !== updatedBooking.totalCost || oldBooking.receipt !== updatedBooking.receipt) {
+      if (JSON.stringify(oldBooking) !== JSON.stringify(updatedBooking)) {
         const allUsers = await storage.getUsers();
         const owners = allUsers.filter(u => u.hotelId === oldBooking.hotelId && u.role === 'owner');
         owners.forEach(owner => {
