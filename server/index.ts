@@ -13,7 +13,8 @@ const allowedOrigins = [
   'capacitor://localhost',
   'http://localhost',
   'https://crm-2k6y.onrender.com', // ADD YOUR PRODUCTION URL HERE
-  'http://crm.outhillsmanali.com'
+  'http://crm.outhillsmanali.com',
+  'https://crm-production-eb08.up.railway.app'
 ];
 declare module "http" {
   interface IncomingMessage {
