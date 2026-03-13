@@ -10,11 +10,12 @@ const httpServer = createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://localhost:5000',
   'capacitor://localhost',
   'http://localhost',
   'https://crm-2k6y.onrender.com', // ADD YOUR PRODUCTION URL HERE
-  'http://crm.outhillsmanali.com',
-  'http://crm-production-49f9.up.railway.app/'
+  'https://crm.outhillsmanali.com',
+  'https://crm-production-49f9.up.railway.app/'
 ];
 declare module "http" {
   interface IncomingMessage {
