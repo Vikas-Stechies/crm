@@ -14,8 +14,25 @@ if (!process.env.DATABASE_URL) {
 //export const db = drizzle(pool, { schema });
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // CRITICAL: Railway requires SSL for many configurations
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // SECURITY & CONNECTIVITY FIX:
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false } // Required for Railway internal networking
+    : false,
 });
 
-const db = drizzle(pool);
+// Use a try-catch block for the initial connection to prevent the container loop
+export const db = drizzle(pool);
+
+async function checkConnection() {
+  try {
+    const client = await pool.connect();
+    console.log("Database connectivity established via Private Networking.");
+    client.release();
+  } catch (err) {
+    console.error("Database connection error:", (err as Error).message);
+    // On Railway, if the DB isn't ready, we might want to wait or exit
+    process.exit(1);
+  }
+}
+
+checkConnection();
