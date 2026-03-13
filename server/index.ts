@@ -14,7 +14,7 @@ const allowedOrigins = [
   'http://localhost',
   'https://crm-2k6y.onrender.com', // ADD YOUR PRODUCTION URL HERE
   'http://crm.outhillsmanali.com',
-  'https://crm-production-eb08.up.railway.app'
+  'http://crm-production-49f9.up.railway.app/'
 ];
 declare module "http" {
   interface IncomingMessage {
